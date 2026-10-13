@@ -1,0 +1,5 @@
+# GitHub Linguist Overrides - Mark vendor and generated libraries
+*.min.mjs linguist-vendored
+*.min.js linguist-vendored
+src/main/resources/static/* linguist-vendored
+frontend/public/* linguist-vendored
