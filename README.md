@@ -1,13 +1,13 @@
 # MockMate AI — Full Stack AI Mock Interview Platform
 
-[![Railway Deployment](https://img.shields.io/badge/Deploy-Railway-0B0D0E?logo=railway)](https://railway.app)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](Dockerfile)
 [![Java](https://img.shields.io/badge/Java-17-orange.svg)](https://openjdk.org/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3.4-brightgreen.svg)](https://spring.io/projects/spring-boot)
 [![Spring Data JPA](https://img.shields.io/badge/JPA-Hibernate-blue.svg)](https://spring.io/projects/spring-data-jpa)
 [![React](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
 [![License](https://img.shields.io/badge/License-MIT-lightgrey.svg)](LICENSE)
 
-> 🚀 **Cloud Deployment**: Containerized with multi-stage Docker and deployed on [Railway](https://railway.app).
+> 🚀 **Production Architecture**: Production-grade Full-Stack Application built with **Java 17 Spring Boot 3**, **Spring Data JPA**, and **React 19**, containerized with Multi-Stage Docker.
 
 MockMate AI is an interactive mock interview preparation platform built with **Java 17**, **Spring Boot 3**, **Spring Data JPA (Hibernate)**, and **React 19**.
 
@@ -176,22 +176,22 @@ npm run dev
 
 ---
 
-## Deployment (Railway / Docker)
+## Containerized Deployment (Docker)
 
 MockMate AI is packaged into a high-performance, single-container production image via multi-stage Docker build:
 1. **Stage 1 (Node 20 Alpine)**: Compiles and bundles the React 19 frontend into static production assets.
 2. **Stage 2 (Eclipse Temurin 17 JDK)**: Embeds the static assets into Spring Boot's `src/main/resources/static/` and builds an executable fat JAR.
 3. **Stage 3 (Eclipse Temurin 17 JRE)**: Runs the application on a secure, non-root lightweight Linux container with dynamic port binding (`$PORT`).
 
-### Deploying to Railway (`railway.app`)
-1. Fork or push this repository to GitHub.
-2. Log into [Railway](https://railway.app) with GitHub.
-3. Click **"New Project"** -> **"Deploy from GitHub repo"** -> select `MockMateAI`.
-4. Railway will automatically detect `railway.json` and build using `Dockerfile`.
-5. Under **Settings** -> **Networking**, click **"Generate Domain"** to get your live public URL (`https://<project-name>.up.railway.app`).
-6. (Optional) In **Variables**, add:
-   - `GROQ_API_KEY` (or `VITE_GROK_API_KEY`)
-   - `GEMINI_API_KEY` (or `VITE_GEMINI_API_KEY`)
+### Build & Run Container
+```bash
+# 1. Build the multi-stage Docker image
+docker build -t mockmate-ai .
+
+# 2. Run container locally or on any cloud host
+docker run -p 8080:8080 -e PORT=8080 mockmate-ai
+```
+The full-stack application will run as a unified service at `http://localhost:8080`.
 
 ---
 
