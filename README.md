@@ -176,6 +176,25 @@ npm run dev
 
 ---
 
+## Deployment (Railway / Docker)
+
+MockMate AI is packaged into a high-performance, single-container production image via multi-stage Docker build:
+1. **Stage 1 (Node 20 Alpine)**: Compiles and bundles the React 19 frontend into static production assets.
+2. **Stage 2 (Eclipse Temurin 17 JDK)**: Embeds the static assets into Spring Boot's `src/main/resources/static/` and builds an executable fat JAR.
+3. **Stage 3 (Eclipse Temurin 17 JRE)**: Runs the application on a secure, non-root lightweight Linux container with dynamic port binding (`$PORT`).
+
+### Deploying to Railway (`railway.app`)
+1. Fork or push this repository to GitHub.
+2. Log into [Railway](https://railway.app) with GitHub.
+3. Click **"New Project"** -> **"Deploy from GitHub repo"** -> select `MockMateAI`.
+4. Railway will automatically detect `railway.json` and build using `Dockerfile`.
+5. Under **Settings** -> **Networking**, click **"Generate Domain"** to get your live public URL (`https://<project-name>.up.railway.app`).
+6. (Optional) In **Variables**, add:
+   - `GROQ_API_KEY` (or `VITE_GROK_API_KEY`)
+   - `GEMINI_API_KEY` (or `VITE_GEMINI_API_KEY`)
+
+---
+
 ## Future Improvements
 - [ ] Add WebSocket / STOMP support for streaming audio packets.
 - [ ] Add JWT-based stateless authentication with Spring Security.
