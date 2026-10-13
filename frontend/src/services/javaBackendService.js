@@ -4,7 +4,7 @@
  * Provides automatic fallback to browser services if the Java backend is not running.
  */
 
-const JAVA_BACKEND_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_JAVA_BACKEND_URL) || 'http://localhost:8080';
+const JAVA_BACKEND_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_JAVA_BACKEND_URL) || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' ? '' : 'http://localhost:8080');
 
 let isBackendReachable = null;
 let lastCheckTime = 0;

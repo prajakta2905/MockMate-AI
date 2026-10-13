@@ -1,32 +1,44 @@
 # ===============================================================
-# MockMate AI — Single Container Full-Stack Deployment Dockerfile
-# Serves React Frontend + Java Spring Boot REST API in 1 Single Place!
+# MockMate AI — Full-Stack Single Container Production Dockerfile
+# Multi-Stage Build: React 19 Frontend + Java 17 Spring Boot Backend
 # ===============================================================
 
-# --- Stage 1: Build Java Spring Boot Application ---
-FROM eclipse-temurin:17-jdk-jammy AS builder
+# --- Stage 1: Build React Frontend ---
+FROM node:20-alpine AS frontend-builder
+WORKDIR /app/frontend
+
+COPY frontend/package*.json ./
+RUN npm ci
+
+COPY frontend/ ./
+RUN npm run build
+
+# --- Stage 2: Build Spring Boot JAR with Built Frontend Assets ---
+FROM eclipse-temurin:17-jdk-jammy AS backend-builder
 WORKDIR /app
 
-# Install Maven
 RUN apt-get update && apt-get install -y maven && rm -rf /var/lib/apt/lists/*
 
 COPY pom.xml .
 COPY src ./src
 
-# Package everything into a standalone executable JAR
+# Copy built frontend assets into Spring Boot's static resources
+COPY --from=frontend-builder /app/frontend/dist/ ./src/main/resources/static/
+
 RUN mvn clean package -DskipTests
 
-# --- Stage 2: Ultra-lightweight Production Runtime ---
+# --- Stage 3: Lightweight Production JRE Runtime ---
 FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 
-# Non-root user for enterprise cloud security
-RUN useradd -m mockmateuser
+# Non-root user for security best practices
+RUN useradd -m -u 1001 mockmateuser && chown -R mockmateuser:mockmateuser /app
 USER mockmateuser
 
-COPY --from=builder /app/target/mockmate-java-1.0.0.jar app.jar
+COPY --from=backend-builder --chown=mockmateuser:mockmateuser /app/target/mockmate-java-1.0.0.jar app.jar
 
 ENV PORT=8080
+ENV JAVA_OPTS="-Xmx384m -Xms128m -XX:+UseG1GC"
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-Dserver.port=${PORT}", "-jar", "app.jar"]
+ENTRYPOINT ["sh", "-c", "java ${JAVA_OPTS} -Dserver.port=${PORT} -Djava.security.egd=file:/dev/./urandom -jar app.jar"]
