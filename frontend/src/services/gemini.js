@@ -66,7 +66,7 @@ async function callGroqJson(prompt, systemInstruction = '') {
       'Authorization': `Bearer ${grokApiKey}`
     },
     body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
+      model: 'qwen/qwen3.8-27b',
       messages: [
         { role: 'system', content: `${systemInstruction}\nYou MUST output strictly valid JSON with no markdown wrapping.` },
         { role: 'user', content: prompt }
@@ -77,7 +77,7 @@ async function callGroqJson(prompt, systemInstruction = '') {
   });
 
   if (!response.ok) {
-    // Fallback to llama-3.1-8b-instant
+    // Fallback to openai/gpt-oss-20b
     const fallbackResponse = await fetch(endpoint, {
       method: 'POST',
       headers: {
@@ -85,7 +85,7 @@ async function callGroqJson(prompt, systemInstruction = '') {
         'Authorization': `Bearer ${grokApiKey}`
       },
       body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
+        model: 'openai/gpt-oss-20b',
         messages: [
           { role: 'system', content: `${systemInstruction}\nYou MUST output strictly valid JSON.` },
           { role: 'user', content: prompt }
@@ -226,18 +226,7 @@ Return strictly a JSON object with this exact schema:
 }
 `;
 
-  // 1. Try Gemini API first (ultra-accurate with Gemini 3.5 / 3.8 Flash)
-  try {
-    const geminiResult = await callGemini(prompt, systemInstruction, apiKeyOverride);
-    if (geminiResult && geminiResult.name) {
-      geminiResult.name = cleanCandidateName(geminiResult.name);
-      return { ...geminiResult, rawText: resumeText };
-    }
-  } catch (geminiErr) {
-    console.warn('Gemini resume parse skipped/failed:', geminiErr.message);
-  }
-
-  // 2. Try Groq (LLaMA 3.3 70B)
+  // 1. Try Groq first (Ultra-low latency Qwen 3.8 / GPT-OSS 20B)
   try {
     const groqResult = await callGroqJson(prompt, systemInstruction);
     if (groqResult && groqResult.name && groqResult.name !== 'Candidate Full Name') {
@@ -246,6 +235,17 @@ Return strictly a JSON object with this exact schema:
     }
   } catch (groqErr) {
     console.warn('Groq resume parse skipped/failed:', groqErr.message);
+  }
+
+  // 2. Try Gemini API
+  try {
+    const geminiResult = await callGemini(prompt, systemInstruction, apiKeyOverride);
+    if (geminiResult && geminiResult.name) {
+      geminiResult.name = cleanCandidateName(geminiResult.name);
+      return { ...geminiResult, rawText: resumeText };
+    }
+  } catch (geminiErr) {
+    console.warn('Gemini resume parse skipped/failed:', geminiErr.message);
   }
 
   // 3. High-precision Real Text Extraction Parser

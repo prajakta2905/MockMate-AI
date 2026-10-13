@@ -177,7 +177,7 @@ Decide whether to ask a follow-up probe on their answer or move forward. Return 
       },
       signal: controller.signal,
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: 'qwen/qwen3.8-27b',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -201,7 +201,7 @@ Decide whether to ask a follow-up probe on their answer or move forward. Return 
           },
           signal: fbController.signal,
           body: JSON.stringify({
-            model: 'llama-3.1-8b-instant',
+            model: 'openai/gpt-oss-20b',
             messages: [
               { role: 'system', content: systemPrompt },
               { role: 'user', content: userPrompt }

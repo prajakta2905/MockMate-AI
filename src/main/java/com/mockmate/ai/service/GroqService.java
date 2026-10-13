@@ -24,7 +24,7 @@ public class GroqService {
     @Value("${mockmate.ai.groq-api-key:}")
     private String groqApiKey;
 
-    @Value("${mockmate.ai.groq-model:llama-3.3-70b-versatile}")
+    @Value("${mockmate.ai.groq-model:qwen/qwen3.8-27b}")
     private String model;
 
     private final HttpClient httpClient;
@@ -61,14 +61,23 @@ public class GroqService {
             return null;
         }
 
+        String result = executeGroqRequest(model, systemInstruction, userMessage);
+        if (result == null && !model.equals("openai/gpt-oss-20b")) {
+            log.info("Attempting fallback Groq model openai/gpt-oss-20b");
+            result = executeGroqRequest("openai/gpt-oss-20b", systemInstruction, userMessage);
+        }
+        return result;
+    }
+
+    private String executeGroqRequest(String targetModel, String systemInstruction, String userMessage) {
         try {
             Map<String, Object> payload = new HashMap<>();
-            payload.put("model", model);
+            payload.put("model", targetModel);
             payload.put("messages", List.of(
                     Map.of("role", "system", "content", systemInstruction),
                     Map.of("role", "user", "content", userMessage)
             ));
-            payload.put("temperature", 0.6);
+            payload.put("temperature", 0.4);
 
             String requestBody = objectMapper.writeValueAsString(payload);
 
@@ -90,7 +99,7 @@ public class GroqService {
                 log.warn("Groq API returned HTTP {}: {}", response.statusCode(), response.body());
             }
         } catch (Exception e) {
-            log.error("Failed to invoke Groq API: {}", e.getMessage());
+            log.error("Failed to invoke Groq API ({}): {}", targetModel, e.getMessage());
         }
         return null;
     }
