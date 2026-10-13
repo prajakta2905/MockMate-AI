@@ -1,74 +1,106 @@
-<div align="center">
-  <img src="https://img.icons8.com/color/96/000000/microphone--v1.png" alt="MockMate AI Logo" width="100"/>
-  
-  <h1 align="center">MockMate AI</h1>
-  
-  <p align="center">
-    <strong>Autonomous AI Mock Interview Coaching Platform with React 19 Frontend & Java Spring Boot 3 REST Backend.</strong>
-  </p>
-  
-  <p align="center">
-    <img src="https://img.shields.io/badge/Frontend-React_19_+_Vite-61DAFB?style=for-the-badge&logo=react" alt="React" />
-    <img src="https://img.shields.io/badge/Backend-Java_Spring_Boot_3-6DB33F?style=for-the-badge&logo=springboot" alt="Spring Boot" />
-    <img src="https://img.shields.io/badge/PDF_Parser-Apache_PDFBox-D22128?style=for-the-badge&logo=apache" alt="Apache PDFBox" />
-    <img src="https://img.shields.io/badge/AI_Engine-Groq_LLaMA_3.3_70B-F55036?style=for-the-badge&logo=lightning" alt="Groq" />
-    <img src="https://img.shields.io/badge/AI_Rubrics-Google_Gemini-8E75B2?style=for-the-badge&logo=googlebard" alt="Gemini" />
-  </p>
-</div>
+# 🎙️ MockMate AI — Enterprise AI Mock Interviewer Platform
 
-<hr />
+[![Java](https://img.shields.io/badge/Java-17%2B-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)](https://openjdk.org/)
+[![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.3.4-6DB33F?style=for-the-badge&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
+[![Spring Data JPA](https://img.shields.io/badge/Spring_Data_JPA-Hibernate-59666C?style=for-the-badge&logo=hibernate&logoColor=white)](https://spring.io/projects/spring-data-jpa)
+[![React](https://img.shields.io/badge/React-19.0-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
+[![Maven](https://img.shields.io/badge/Maven-3.9-C71A36?style=for-the-badge&logo=apachemaven&logoColor=white)](https://maven.apache.org/)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
 
-## ✨ Features
-
-- 🎙️ **Real-time Voice Interactions**: Talk directly to the AI interviewer using built-in browser speech recognition and real-time audio visualization.
-- 📄 **Server-Side PDF Parsing (Java Apache PDFBox)**: Upload your PDF resume, securely extracted server-side in Java.
-- 🤖 **Dynamic AI Coaching (Groq LPU + Google Gemini)**: Experience adaptive follow-up questions, real-time rubric grading, and personalized feedback.
-- 📊 **Actionable Analytics**: Track your progress over time with visual charts and detailed history logs stored in the Java backend.
-- 🔐 **Spring Boot Authentication**: Seamless signup, login, and session tracking powered by Java Spring Boot REST API.
-- 🚀 **Blazing Fast UI**: Built with React 19, styled with Tailwind CSS, and smoothly animated using Framer Motion.
+An enterprise-ready, full-stack AI Mock Interview Coaching Platform architected with **Java 17**, **Spring Boot 3**, **Spring Data JPA (Hibernate)**, **PostgreSQL/H2 Database**, and a modern **React 19** frontend.
 
 ---
 
-## 🛠️ Architecture & Tech Stack
+## 🏗️ Architecture & Tech Stack
 
-| Layer | Technologies Used | Purpose |
+```
+MockMateAI (Root - Spring Boot Project)
+├── ☕ src/main/java/com/mockmate/ai/
+│   ├── controller/      # REST API Controllers (@RestController)
+│   ├── entity/          # JPA Entities with Hibernate ORM (@Entity)
+│   ├── repository/      # Spring Data JPA Repositories (JpaRepository)
+│   ├── service/         # Business Logic, AI orchestration & PDF parsing
+│   └── model/           # DTOs and Domain Models
+├── ⚙️ src/main/resources/
+│   ├── application.properties   # Database & server configuration
+│   └── static/                  # API dashboard & documentation
+├── 🧪 src/test/java/            # Spring Boot JUnit 5 integration tests
+├── ⚛️ frontend/                 # React 19 + Vite + TailwindCSS Voice UI
+│   ├── src/                     # React components, state, hooks, services
+│   ├── package.json
+│   └── vite.config.ts
+├── 📦 pom.xml                   # Maven Build Descriptor
+└── 🚀 start-all.bat             # 1-Click launcher for full stack
+```
+
+### ☕ Backend (Core)
+* **Java 17 / OpenJDK**
+* **Spring Boot 3.3.4** (`spring-boot-starter-web`, `spring-boot-starter-data-jpa`)
+* **Hibernate 6 ORM** with **Spring Data JPA**
+* **In-memory H2 Database** (Zero-config local development) & **PostgreSQL** support
+* **Apache PDFBox 3.0.3** for server-side PDF resume parsing and text extraction
+* **AI Orchestration Services**: Google Gemini 1.5 Flash & Groq LLM integration
+* **Jackson Databind** for JSON serialization & DTO transformations
+
+### ⚛️ Frontend
+* **React 19** with **Vite** & **TailwindCSS**
+* **Web Speech API** for real-time speech recognition and voice synthesis
+* **Web Audio API visualizer** with live frequency wave rendering
+* Comprehensive hiring scorecard, technical evaluations & dynamic follow-up questioning
+
+---
+
+## 🚀 REST API Endpoints
+
+| Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| **Frontend UI** | **React 19 + Vite 6** | Dynamic responsive single-page application |
-| **Styling & Motion** | **Tailwind CSS + Framer Motion** | Sleek modern design system and fluid micro-animations |
-| **Visual Charts** | **Recharts** | Interactive competency and score trend graphs |
-| **Backend REST API** | **Java 17 + Spring Boot 3.3.4** | High-performance enterprise REST API backend (`mockmate-java`) |
-| **PDF Processing** | **Apache PDFBox 3.0.3** | Server-side secure candidate resume parsing in Java |
-| **Ultra-fast AI** | **Groq LPU (LLaMA 3.3 70B)** | Sub-second follow-up question generation and instant critique |
-| **AI Assessment** | **Google Gemini 2.0 Flash** | Comprehensive rubric scoring and evaluation reports |
+| `POST` | `/api/interview/start` | Initialize interview session & generate custom questions from resume |
+| `POST` | `/api/interview/evaluate` | Submit candidate answer; returns AI score, rubric & dynamic follow-up |
+| `POST` | `/api/interview/resume/parse` | Parse uploaded PDF resume via Apache PDFBox |
+| `POST` | `/api/auth/register` | Register new user with JPA persistence |
+| `POST` | `/api/auth/login` | Authenticate user |
+| `GET` | `/api/history` | Retrieve candidate practice history & scorecards |
+| `GET` | `/h2-console` | Interactive H2 Database management console |
 
 ---
 
-## 🚀 Quick Start (Local Setup)
+## 🛠️ How to Run
 
-### 1-Click Launch (Recommended)
-Simply double-click:
+### Prerequisites
+* **Java 17+** (JDK)
+* **Maven 3.8+** (or use bundled Maven)
+* **Node.js 18+** (for frontend)
+
+### Option 1: 1-Click Launch (Windows)
+Double-click [`start-all.bat`](start-all.bat) in the root directory. It automatically starts both the Spring Boot backend and the React frontend.
+
+### Option 2: Manual Launch
+
+#### 1. Start Java Spring Boot Backend
 ```bash
-start-all.bat
+# In the root directory
+mvn clean spring-boot:run
 ```
-This automatically starts:
-1. **Java Spring Boot Backend** on `http://localhost:8080`
-2. **React Frontend** on `http://127.0.0.1:5173`
+* Backend runs at: `http://localhost:8080`
+* H2 Database Console: `http://localhost:8080/h2-console`
 
----
-
-### Manual Launch
-
-#### Step 1: Start Java Backend
+#### 2. Start React Frontend
 ```bash
-cd backend
-run.bat
-# Or: mvn spring-boot:run
-```
-
-#### Step 2: Start React Frontend
-```bash
+# In the frontend directory
+cd frontend
 npm install
 npm run dev
 ```
+* Frontend runs at: `http://localhost:5173`
 
-Open **`http://127.0.0.1:5173/`** in your browser.
+---
+
+## 🗄️ Database & JPA Entities
+* **`UserEntity`**: User management, credentials, profile metadata.
+* **`ResumeEntity`**: Candidate resumes, extracted skills, experience level, raw parsed text.
+* **`InterviewRecordEntity`**: Interview history, category scores, feedback, strengths, and weaknesses.
+
+---
+
+## 👩‍💻 Author
+* **Prajakta Gudadhe** — [GitHub Profile](https://github.com/prajakta2905)
