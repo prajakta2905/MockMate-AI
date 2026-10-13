@@ -120,9 +120,7 @@ public class InterviewApiController {
                                                             @RequestParam(value = "sessionId", required = false) String sessionId,
                                                             @RequestParam(value = "userId", required = false) String userId) {
         String text = payload.getOrDefault("rawText", "");
-        CandidateProfile profile = pdfParserService.parseResumePdf(
-                new ByteArrayInputStream(text.getBytes(StandardCharsets.UTF_8))
-        );
+        CandidateProfile profile = pdfParserService.parseResumeText(text);
         InterviewSession session = sessionStore.getSession(sessionId);
         session.setProfile(profile);
 

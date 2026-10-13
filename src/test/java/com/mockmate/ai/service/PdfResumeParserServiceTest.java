@@ -30,4 +30,16 @@ class PdfResumeParserServiceTest {
         assertEquals("Candidate", profile.getFullName());
         assertEquals("Software Engineer", profile.getTargetRole());
     }
+
+    @Test
+    @DisplayName("Should extract baseline skills and name from resume text")
+    void testParseResumeText() {
+        String sampleText = "Prajakta Gudadhe\nJava Backend Engineer\nprajakta@example.com\nSkills: Java, Spring Boot, Docker, PostgreSQL\n";
+        CandidateProfile profile = parserService.parseResumeText(sampleText);
+
+        assertNotNull(profile);
+        assertEquals("Prajakta Gudadhe", profile.getFullName());
+        assertTrue(profile.getExtractedSkills().contains("Java"));
+        assertTrue(profile.getExtractedSkills().contains("Spring Boot"));
+    }
 }

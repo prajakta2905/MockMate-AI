@@ -23,35 +23,89 @@ export default function ResumeUpload({ onResumeAnalyzed }) {
 
     setIsProcessing(true);
     setErrorMsg(null);
-    setProcessingStage('Spring Boot Backend parsing resume text & JPA entity...');
+    setProcessingStage('Spring Boot Engine & AI analyzing resume...');
 
     try {
       // 1. Primary: Java Spring Boot Backend
-      const javaRes = await parseResumeTextWithJavaBackend(text);
-      if (javaRes?.success && javaRes.profile) {
-        const p = javaRes.profile;
-        const allSkills = p.extractedSkills || [];
+      let javaProfile = null;
+      try {
+        const javaRes = await parseResumeTextWithJavaBackend(text);
+        if (javaRes?.success && javaRes.profile) {
+          javaProfile = javaRes.profile;
+        }
+      } catch (beErr) {
+        console.warn('Java backend text parse attempt:', beErr);
+      }
+
+      const p = javaProfile;
+      const allSkills = p?.extractedSkills || [];
+      const candidateProjects = (p?.projects && p.projects.length > 0) 
+        ? p.projects 
+        : (p?.extractedProjects ? p.extractedProjects.map(name => ({ name, techStack: [], description: '' })) : []);
+
+      // If backend AI extracted real name and projects:
+      if (p && p.fullName && p.fullName !== 'Candidate' && candidateProjects.length > 0) {
         const formatted = {
-          name: p.fullName || 'Candidate',
+          name: p.fullName,
           targetRole: p.targetRole || 'Software Engineer',
-          yearsOfExperience: p.yearsOfExperience || '1-3 years',
+          experienceLevel: p.experienceLevel || p.yearsOfExperience || '1-3 years',
           skills: {
-            frontend: allSkills.slice(0, 3),
-            backend: allSkills.slice(3)
+            frontend: allSkills.slice(0, 4),
+            backend: allSkills.slice(4),
+            all: allSkills
           },
-          summary: p.summary || `Extracted profile for ${p.fullName || 'Candidate'}`,
-          keyProjects: p.projects || [],
+          summary: p.summary || `Extracted profile for ${p.fullName}`,
+          projects: candidateProjects,
+          keyProjects: candidateProjects,
           rawText: text
         };
         setParsedData(formatted);
-        setProcessingStage('Profile processed by Spring Boot backend!');
+        setProcessingStage('Profile processed with AI!');
         return;
       }
 
-      // 2. Fallback: Browser parser
+      // 2. Client-side AI Deep Extraction (Groq / Gemini)
+      setProcessingStage('AI Deep Extraction parsing candidate name & projects...');
       const analysis = await analyzeResumeWithGemini(text);
-      setParsedData(analysis);
-      setProcessingStage('Profile extracted successfully!');
+      if (analysis) {
+        const finalProjects = (analysis.projects && analysis.projects.length > 0)
+          ? analysis.projects
+          : candidateProjects;
+
+        const formatted = {
+          ...analysis,
+          name: analysis.name && analysis.name !== 'Candidate' ? analysis.name : (p?.fullName || 'Candidate'),
+          targetRole: analysis.targetRole || p?.targetRole || 'Software Engineer',
+          experienceLevel: analysis.experienceLevel || p?.experienceLevel || 'Mid-Level',
+          projects: finalProjects,
+          keyProjects: finalProjects,
+          skills: analysis.skills || { all: allSkills },
+          summary: analysis.summary || p?.summary || `Profile for ${analysis.name || 'Candidate'}`,
+          rawText: text
+        };
+        setParsedData(formatted);
+        setProcessingStage('Profile extracted successfully by AI!');
+        return;
+      }
+
+      // 3. Fallback Heuristic Profile
+      if (p) {
+        const fallbackFormatted = {
+          name: p.fullName || 'Candidate',
+          targetRole: p.targetRole || 'Software Engineer',
+          experienceLevel: p.experienceLevel || '1-3 years',
+          skills: {
+            frontend: allSkills.slice(0, 4),
+            backend: allSkills.slice(4),
+            all: allSkills
+          },
+          summary: p.summary || `Extracted profile for ${p.fullName || 'Candidate'}`,
+          projects: candidateProjects,
+          keyProjects: candidateProjects,
+          rawText: text
+        };
+        setParsedData(fallbackFormatted);
+      }
     } catch (err) {
       console.error('Resume parsing failed:', err);
       setErrorMsg(err.message || 'Failed to analyze resume. Please try a sample resume or paste text.');
@@ -65,32 +119,57 @@ export default function ResumeUpload({ onResumeAnalyzed }) {
 
     setIsProcessing(true);
     setErrorMsg(null);
-    setProcessingStage('Java Spring Boot Apache PDFBox analyzing resume...');
+    setProcessingStage('Spring Boot Apache PDFBox & AI analyzing resume...');
 
     try {
-      // 1. Primary: Direct Spring Boot Apache PDFBox + Spring Data JPA persistence
-      const javaRes = await parseResumeWithJavaBackend(file);
-      if (javaRes?.success && javaRes.profile) {
-        const p = javaRes.profile;
-        const allSkills = p.extractedSkills || [];
-        const formatted = {
-          name: p.fullName || 'Candidate',
-          targetRole: p.targetRole || 'Software Engineer',
-          yearsOfExperience: p.yearsOfExperience || '1-3 years',
-          skills: {
-            frontend: allSkills.slice(0, 3),
-            backend: allSkills.slice(3)
-          },
-          summary: p.summary || `Extracted profile for ${p.fullName || 'Candidate'}`,
-          keyProjects: p.projects || [],
-          rawText: p.rawResumeText || ''
-        };
-        setParsedData(formatted);
-        setProcessingStage('Profile extracted by Spring Boot Apache PDFBox!');
-        return;
+      // 1. Primary: Direct Spring Boot Apache PDFBox + AI extraction
+      let javaProfile = null;
+      try {
+        const javaRes = await parseResumeWithJavaBackend(file);
+        if (javaRes?.success && javaRes.profile) {
+          javaProfile = javaRes.profile;
+        }
+      } catch (beErr) {
+        console.warn('Java backend PDF parse attempt:', beErr);
       }
 
-      // 2. Fallback: Client-side PDF extraction
+      if (javaProfile) {
+        const p = javaProfile;
+        const allSkills = p.extractedSkills || [];
+        const candidateProjects = (p.projects && p.projects.length > 0)
+          ? p.projects
+          : (p.extractedProjects ? p.extractedProjects.map(name => ({ name, techStack: [], description: '' })) : []);
+
+        // If backend AI extracted real name and projects:
+        if (p.fullName && p.fullName !== 'Candidate' && candidateProjects.length > 0) {
+          const formatted = {
+            name: p.fullName,
+            targetRole: p.targetRole || 'Software Engineer',
+            experienceLevel: p.experienceLevel || p.yearsOfExperience || '1-3 years',
+            skills: {
+              frontend: allSkills.slice(0, 4),
+              backend: allSkills.slice(4),
+              all: allSkills
+            },
+            summary: p.summary || `Extracted profile for ${p.fullName}`,
+            projects: candidateProjects,
+            keyProjects: candidateProjects,
+            rawText: p.rawResumeText || ''
+          };
+          setParsedData(formatted);
+          setProcessingStage('Profile extracted with AI by Spring Boot!');
+          return;
+        }
+
+        // If backend parsed PDF raw text, pass it to AI extraction:
+        if (p.rawResumeText && p.rawResumeText.trim().length > 30) {
+          await processResumeText(p.rawResumeText, file.name);
+          return;
+        }
+      }
+
+      // 2. Fallback: Client-side PDF extraction + AI analysis
+      setProcessingStage('Extracting PDF text and analyzing with AI...');
       const text = await extractTextFromPDF(file);
       await processResumeText(text, file.name);
     } catch (err) {
@@ -392,9 +471,13 @@ export default function ResumeUpload({ onResumeAnalyzed }) {
                 <Cpu className="w-2.5 h-2.5 text-[#D4AF37]" /> Key Tech Skills
               </span>
               <textarea
-                value={Object.entries(parsedData.skills || {}).flatMap(([_, list]) => 
-                  Array.isArray(list) ? list : []
-                ).join(', ')}
+                value={
+                  Array.isArray(parsedData.skills)
+                    ? parsedData.skills.join(', ')
+                    : Object.entries(parsedData.skills || {}).flatMap(([_, list]) => 
+                        Array.isArray(list) ? list : []
+                      ).join(', ')
+                }
                 onChange={(e) => {
                   setParsedData({ 
                     ...parsedData, 

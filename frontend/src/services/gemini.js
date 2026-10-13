@@ -66,7 +66,7 @@ async function callGroqJson(prompt, systemInstruction = '') {
       'Authorization': `Bearer ${grokApiKey}`
     },
     body: JSON.stringify({
-      model: 'qwen/qwen3.8-27b',
+      model: 'llama-3.3-70b-versatile',
       messages: [
         { role: 'system', content: `${systemInstruction}\nYou MUST output strictly valid JSON with no markdown wrapping.` },
         { role: 'user', content: prompt }
@@ -77,7 +77,7 @@ async function callGroqJson(prompt, systemInstruction = '') {
   });
 
   if (!response.ok) {
-    // Fallback to gpt-oss-20b
+    // Fallback to llama-3.1-8b-instant
     const fallbackResponse = await fetch(endpoint, {
       method: 'POST',
       headers: {
@@ -85,7 +85,7 @@ async function callGroqJson(prompt, systemInstruction = '') {
         'Authorization': `Bearer ${grokApiKey}`
       },
       body: JSON.stringify({
-        model: 'openai/gpt-oss-20b',
+        model: 'llama-3.1-8b-instant',
         messages: [
           { role: 'system', content: `${systemInstruction}\nYou MUST output strictly valid JSON.` },
           { role: 'user', content: prompt }
@@ -118,7 +118,7 @@ async function callGemini(prompt, systemInstruction = '', apiKeyOverride = null)
     throw new Error('NO_API_KEY');
   }
 
-  const models = ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'];
+  const models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
   let lastError = null;
 
   for (const model of models) {
