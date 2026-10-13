@@ -4,14 +4,14 @@
  * Provides automatic fallback to browser services if the Java backend is not running.
  */
 
-const JAVA_BACKEND_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_JAVA_BACKEND_URL) || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' ? '' : 'http://localhost:8080');
+const JAVA_BACKEND_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_JAVA_BACKEND_URL) || 
+  (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' ? '' : 'http://localhost:8080');
 
 let isBackendReachable = null;
 let lastCheckTime = 0;
 
 /**
- * Checks if Java Spring Boot Backend is running on port 8080.
- * Caches result for 15 seconds to avoid spamming network requests.
+ * Checks if Java Spring Boot Backend is running.
  */
 export async function checkJavaBackendStatus() {
   const now = Date.now();
@@ -21,7 +21,7 @@ export async function checkJavaBackendStatus() {
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
     const res = await fetch(`${JAVA_BACKEND_URL}/api/status`, {
       method: 'GET',
       signal: controller.signal
@@ -35,7 +35,7 @@ export async function checkJavaBackendStatus() {
       return { online: true, ...data };
     }
   } catch (e) {
-    // Backend is offline or starting up
+    // Backend offline or spinning up
   }
 
   isBackendReachable = false;
@@ -44,7 +44,7 @@ export async function checkJavaBackendStatus() {
 }
 
 /**
- * Parses resume PDF via Java Spring Boot Apache PDFBox.
+ * Parses resume PDF via Java Spring Boot Apache PDFBox + Persists to Spring Data JPA.
  */
 export async function parseResumeWithJavaBackend(file) {
   try {
@@ -52,7 +52,7 @@ export async function parseResumeWithJavaBackend(file) {
     formData.append('file', file);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
 
     const res = await fetch(`${JAVA_BACKEND_URL}/api/resume/parse`, {
       method: 'POST',
@@ -66,7 +66,33 @@ export async function parseResumeWithJavaBackend(file) {
       return { success: true, profile };
     }
   } catch (err) {
-    console.warn('[Java Backend] PDF parsing failed or offline, falling back to client-side PDF.js', err);
+    console.warn('[Java Backend] PDF parsing failed or offline', err);
+  }
+  return { success: false };
+}
+
+/**
+ * Parses raw resume text via Java Spring Boot + Persists to Spring Data JPA.
+ */
+export async function parseResumeTextWithJavaBackend(rawText) {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    const res = await fetch(`${JAVA_BACKEND_URL}/api/resume/parse-text`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rawText }),
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      const profile = await res.json();
+      return { success: true, profile };
+    }
+  } catch (err) {
+    console.warn('[Java Backend] Text resume parsing failed', err);
   }
   return { success: false };
 }
@@ -76,6 +102,9 @@ export async function parseResumeWithJavaBackend(file) {
  */
 export async function generateQuestionsWithJavaBackend(profile) {
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
     const res = await fetch(`${JAVA_BACKEND_URL}/api/interview/questions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -83,15 +112,17 @@ export async function generateQuestionsWithJavaBackend(profile) {
         role: profile.targetRole || profile.role || 'Software Engineer',
         fullName: profile.fullName || profile.name || 'Candidate',
         skills: profile.extractedSkills || profile.skills || []
-      })
+      }),
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
 
     if (res.ok) {
       const pool = await res.json();
       return { success: true, pool };
     }
   } catch (err) {
-    console.warn('[Java Backend] Question generation offline, using client-side generator', err);
+    console.warn('[Java Backend] Question generation offline', err);
   }
   return { success: false };
 }
@@ -101,11 +132,16 @@ export async function generateQuestionsWithJavaBackend(profile) {
  */
 export async function evaluateAnswerWithJavaBackend(question, answer, role = 'Software Engineer') {
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
+
     const res = await fetch(`${JAVA_BACKEND_URL}/api/interview/evaluate-answer`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question, answer, role })
+      body: JSON.stringify({ question, answer, role }),
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
 
     if (res.ok) {
       const data = await res.json();
@@ -118,15 +154,20 @@ export async function evaluateAnswerWithJavaBackend(question, answer, role = 'So
 }
 
 /**
- * Generates comprehensive final evaluation report card via Java Spring Boot.
+ * Generates comprehensive final evaluation report card via Java Spring Boot + Persists to JPA.
  */
 export async function generateReportWithJavaBackend(answers, role = 'Software Engineer') {
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
     const res = await fetch(`${JAVA_BACKEND_URL}/api/interview/report`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ answers, role })
+      body: JSON.stringify({ answers, role }),
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
 
     if (res.ok) {
       const report = await res.json();
@@ -136,4 +177,73 @@ export async function generateReportWithJavaBackend(answers, role = 'Software En
     console.warn('[Java Backend] Report generation offline', err);
   }
   return { success: false };
+}
+
+/**
+ * User authentication via Spring Boot JPA
+ */
+export async function loginWithJavaBackend(email, password) {
+  try {
+    const res = await fetch(`${JAVA_BACKEND_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn('[Java Backend] Auth login error', err);
+  }
+  return null;
+}
+
+export async function signupWithJavaBackend(email, password, fullName) {
+  try {
+    const res = await fetch(`${JAVA_BACKEND_URL}/api/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, fullName })
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn('[Java Backend] Auth signup error', err);
+  }
+  return null;
+}
+
+/**
+ * History records from Spring Data JPA
+ */
+export async function fetchHistoryFromJavaBackend() {
+  try {
+    const res = await fetch(`${JAVA_BACKEND_URL}/api/history`, {
+      method: 'GET'
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data?.history || [];
+    }
+  } catch (err) {
+    console.warn('[Java Backend] History fetch error', err);
+  }
+  return [];
+}
+
+export async function saveHistoryToJavaBackend(historyData) {
+  try {
+    const res = await fetch(`${JAVA_BACKEND_URL}/api/history`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(historyData)
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn('[Java Backend] History save error', err);
+  }
+  return null;
 }

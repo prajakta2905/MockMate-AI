@@ -147,7 +147,7 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className={`flex-1 w-full overflow-y-auto ${currentStep === 'home'
+      <main className={`flex-1 w-full overflow-y-auto overflow-x-hidden ${currentStep === 'home'
         ? 'px-3 sm:px-6 lg:px-8'
         : 'max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2 sm:py-4 flex flex-col justify-center'
         }`}>

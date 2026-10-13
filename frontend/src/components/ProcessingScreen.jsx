@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Sparkles, CheckCircle2, RefreshCw, Cpu, MessageSquare, Award, FileText } from 'lucide-react';
 import { generateFinalReportWithGemini } from '../services/gemini';
+import { generateReportWithJavaBackend } from '../services/javaBackendService';
 
 export default function ProcessingScreen({ interviewData, onReportReady }) {
   const [currentStageIndex, setCurrentStageIndex] = useState(0);
@@ -40,6 +41,22 @@ export default function ProcessingScreen({ interviewData, onReportReady }) {
 
     async function evaluate() {
       try {
+        // 1. Primary: Call Java Spring Boot REST Endpoint (/api/interview/report)
+        const javaRes = await generateReportWithJavaBackend(
+          interviewData?.transcript || interviewData?.answers || [],
+          interviewData?.targetRole || interviewData?.role || 'Software Engineer'
+        );
+
+        if (javaRes?.success && javaRes.report) {
+          if (isMounted) {
+            setTimeout(() => {
+              onReportReady(javaRes.report);
+            }, 3000);
+          }
+          return;
+        }
+
+        // 2. Fallback: Browser report generator
         const report = await generateFinalReportWithGemini(interviewData);
         if (isMounted) {
           setTimeout(() => {

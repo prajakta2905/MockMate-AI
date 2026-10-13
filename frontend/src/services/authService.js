@@ -4,6 +4,7 @@
  */
 
 import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { loginWithJavaBackend, signupWithJavaBackend } from './javaBackendService';
 
 const TOKEN_STORAGE_KEY = 'mockmate_auth_token';
 const USER_STORAGE_KEY = 'mockmate_auth_user';
@@ -53,6 +54,29 @@ export function getAuthToken() {
  * Register new user with Supabase Auth
  */
 export async function signUpWithEmail({ email, password, fullName }) {
+  // 1. Primary: Spring Boot JPA Auth (/api/auth/signup)
+  try {
+    const javaAuth = await signupWithJavaBackend(email, password, fullName);
+    if (javaAuth?.user) {
+      const u = javaAuth.user;
+      const formattedUser = {
+        id: String(u.id),
+        email: u.email,
+        name: u.fullName || fullName,
+        createdAt: u.createdAt || new Date().toISOString()
+      };
+      if (javaAuth.token) {
+        localStorage.setItem(TOKEN_STORAGE_KEY, javaAuth.token);
+      }
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(formattedUser));
+      notifyAuthListeners(formattedUser);
+      return { user: formattedUser, error: null };
+    }
+  } catch (err) {
+    console.warn('[Spring Boot] JPA signup fallback:', err);
+  }
+
+  // 2. Fallback: Supabase Auth
   if (isSupabaseConfigured() && supabase) {
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -98,9 +122,32 @@ export async function signUpWithEmail({ email, password, fullName }) {
 }
 
 /**
- * Sign in with Email and Password via Supabase Auth
+ * Sign in with Email and Password via Spring Boot JPA Auth
  */
 export async function signInWithEmail({ email, password }) {
+  // 1. Primary: Spring Boot JPA Auth (/api/auth/login)
+  try {
+    const javaAuth = await loginWithJavaBackend(email, password);
+    if (javaAuth?.user) {
+      const u = javaAuth.user;
+      const formattedUser = {
+        id: String(u.id),
+        email: u.email,
+        name: u.fullName || email.split('@')[0],
+        createdAt: u.createdAt || new Date().toISOString()
+      };
+      if (javaAuth.token) {
+        localStorage.setItem(TOKEN_STORAGE_KEY, javaAuth.token);
+      }
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(formattedUser));
+      notifyAuthListeners(formattedUser);
+      return { user: formattedUser, error: null };
+    }
+  } catch (err) {
+    console.warn('[Spring Boot] JPA login fallback:', err);
+  }
+
+  // 2. Fallback: Supabase Auth
   if (isSupabaseConfigured() && supabase) {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({

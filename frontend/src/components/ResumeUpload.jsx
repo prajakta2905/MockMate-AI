@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Upload, FileText, Sparkles, CheckCircle2, ArrowRight, User, Briefcase, GraduationCap, Cpu, Layers, AlertCircle, RefreshCw } from 'lucide-react';
 import { extractTextFromPDF } from '../services/pdfParser';
 import { analyzeResumeWithGemini, cleanCandidateName } from '../services/gemini';
+import { parseResumeWithJavaBackend, parseResumeTextWithJavaBackend } from '../services/javaBackendService';
 import { SAMPLE_RESUMES } from '../data/sampleResumes';
 
 export default function ResumeUpload({ onResumeAnalyzed }) {
@@ -22,12 +23,32 @@ export default function ResumeUpload({ onResumeAnalyzed }) {
 
     setIsProcessing(true);
     setErrorMsg(null);
-    setProcessingStage('Reading document structure...');
+    setProcessingStage('Spring Boot Backend parsing resume text & JPA entity...');
 
     try {
-      await new Promise(r => setTimeout(r, 200));
-      setProcessingStage('AI extracting actual name, projects, skills & achievements...');
-      
+      // 1. Primary: Java Spring Boot Backend
+      const javaRes = await parseResumeTextWithJavaBackend(text);
+      if (javaRes?.success && javaRes.profile) {
+        const p = javaRes.profile;
+        const allSkills = p.extractedSkills || [];
+        const formatted = {
+          name: p.fullName || 'Candidate',
+          targetRole: p.targetRole || 'Software Engineer',
+          yearsOfExperience: p.yearsOfExperience || '1-3 years',
+          skills: {
+            frontend: allSkills.slice(0, 3),
+            backend: allSkills.slice(3)
+          },
+          summary: p.summary || `Extracted profile for ${p.fullName || 'Candidate'}`,
+          keyProjects: p.projects || [],
+          rawText: text
+        };
+        setParsedData(formatted);
+        setProcessingStage('Profile processed by Spring Boot backend!');
+        return;
+      }
+
+      // 2. Fallback: Browser parser
       const analysis = await analyzeResumeWithGemini(text);
       setParsedData(analysis);
       setProcessingStage('Profile extracted successfully!');
@@ -44,14 +65,38 @@ export default function ResumeUpload({ onResumeAnalyzed }) {
 
     setIsProcessing(true);
     setErrorMsg(null);
-    setProcessingStage('Extracting text from PDF document...');
+    setProcessingStage('Java Spring Boot Apache PDFBox analyzing resume...');
 
     try {
+      // 1. Primary: Direct Spring Boot Apache PDFBox + Spring Data JPA persistence
+      const javaRes = await parseResumeWithJavaBackend(file);
+      if (javaRes?.success && javaRes.profile) {
+        const p = javaRes.profile;
+        const allSkills = p.extractedSkills || [];
+        const formatted = {
+          name: p.fullName || 'Candidate',
+          targetRole: p.targetRole || 'Software Engineer',
+          yearsOfExperience: p.yearsOfExperience || '1-3 years',
+          skills: {
+            frontend: allSkills.slice(0, 3),
+            backend: allSkills.slice(3)
+          },
+          summary: p.summary || `Extracted profile for ${p.fullName || 'Candidate'}`,
+          keyProjects: p.projects || [],
+          rawText: p.rawResumeText || ''
+        };
+        setParsedData(formatted);
+        setProcessingStage('Profile extracted by Spring Boot Apache PDFBox!');
+        return;
+      }
+
+      // 2. Fallback: Client-side PDF extraction
       const text = await extractTextFromPDF(file);
       await processResumeText(text, file.name);
     } catch (err) {
       console.error('Error reading file:', err);
       setErrorMsg(err.message || 'Could not parse PDF. Try pasting the text directly in the "Paste Text" tab.');
+    } finally {
       setIsProcessing(false);
     }
   };

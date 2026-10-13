@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, Mic, CheckCircle2, Play, RefreshCw, Cpu, Layers, Users } from 'lucide-react';
 import { generateQuestionPoolWithGemini, cleanCandidateName } from '../services/gemini';
+import { generateQuestionsWithJavaBackend } from '../services/javaBackendService';
 import { speechService } from '../services/speechService';
 
 export default function InterviewPrep({ resume, setup, onReadyToStart, onBack }) {
@@ -15,6 +16,18 @@ export default function InterviewPrep({ resume, setup, onReadyToStart, onBack })
     async function loadQuestions() {
       try {
         setLoading(true);
+
+        // 1. Primary: Java Spring Boot REST Endpoint (/api/interview/questions)
+        const javaRes = await generateQuestionsWithJavaBackend(resume);
+        if (javaRes?.success && javaRes.pool) {
+          if (isMounted) {
+            setQuestionPool(javaRes.pool);
+            setLoading(false);
+          }
+          return;
+        }
+
+        // 2. Fallback: Client-side generation
         const pool = await generateQuestionPoolWithGemini(
           resume,
           setup.type,

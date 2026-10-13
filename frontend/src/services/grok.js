@@ -26,6 +26,38 @@ export async function evaluateAnswerAndGenerateNextQuestion({
   interviewType = 'mixed',
   resume = null
 }) {
+  // 0. Primary: Call Spring Boot REST Backend (/api/interview/evaluate-answer)
+  try {
+    const qText = typeof currentQuestion === 'string' ? currentQuestion : (currentQuestion?.question || currentQuestion?.text || '');
+    const javaRes = await evaluateAnswerWithJavaBackend(qText, candidateAnswer, targetRole);
+    if (javaRes?.success && (javaRes.nextFollowUp || javaRes.feedback)) {
+      const followUpText = javaRes.nextFollowUp || javaRes.feedback;
+      const words = candidateAnswer.trim().split(/\s+/).length;
+      
+      if (words < 30) {
+        return {
+          action: 'follow_up',
+          question: followUpText,
+          rationale: 'Deepening candidate response via Spring Boot Interview Coach'
+        };
+      } else {
+        const nextIdx = currentQuestionIndex + 1;
+        if (nextIdx < questionPool.length) {
+          const nextQ = questionPool[nextIdx];
+          return {
+            action: 'next',
+            question: typeof nextQ === 'string' ? nextQ : (nextQ?.question || nextQ?.text || nextQ),
+            rationale: followUpText
+          };
+        } else {
+          return { action: 'finish' };
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[Spring Boot] Answer evaluation fallback:', e);
+  }
+
   const apiKey = getGrokApiKey();
 
   // 1. If key is provided (Groq "gsk_..." or xAI "xai-..."), call live high-speed LLM
