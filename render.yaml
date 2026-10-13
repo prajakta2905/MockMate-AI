@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: mockmate-ai
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: JAVA_OPTS
+        value: "-Xmx384m -Xms128m -XX:+UseG1GC"

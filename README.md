@@ -1,11 +1,14 @@
 # MockMate AI — Autonomous Voice & Resume AI Interviewer
 
+[![Live Demo](https://img.shields.io/badge/Demo-Live_on_Cloud-success?style=flat-square&logo=render&logoColor=white)](https://mockmateai-nsfb.onrender.com/)
 [![Java 17](https://img.shields.io/badge/Java-17-ED8B00?style=flat-square&logo=openjdk&logoColor=white)](https://openjdk.org/)
 [![Spring Boot 3.3.4](https://img.shields.io/badge/Spring_Boot-3.3.4-6DB33F?style=flat-square&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
 [![Spring Data JPA](https://img.shields.io/badge/JPA-Hibernate_6-59666C?style=flat-square&logo=hibernate&logoColor=white)](https://spring.io/projects/spring-data-jpa)
 [![React 19](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
 [![Docker](https://img.shields.io/badge/Docker-Multi--Stage-2496ED?style=flat-square&logo=docker&logoColor=white)](Dockerfile)
 [![JUnit 5](https://img.shields.io/badge/JUnit-5_Tested-25A162?style=flat-square&logo=junit5&logoColor=white)](src/test/java)
+
+> 🌐 **Live Application**: [https://mockmateai-nsfb.onrender.com](https://mockmateai-nsfb.onrender.com)
 
 An enterprise full-stack mock interview platform built with **Java 17**, **Spring Boot 3**, **Spring Data JPA**, and **React 19**. MockMate AI conducts live, voice-driven technical interviews tailored to a candidate's uploaded resume, evaluates technical depth with adaptive follow-up questions, and generates a structured scorecard persisted in a relational database.
 
