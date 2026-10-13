@@ -78,19 +78,19 @@ export default function Navbar({ onReset, currentStep, currentUser: propUser, on
             </div>
           </div>
 
-          {/* Center Engine Status (Clean Executive SaaS Style) */}
+          {/* Center Engine Status (Clean Executive SaaS Style highlighting Spring Boot & Java 17) */}
           <div className="hidden lg:flex items-center gap-2.5 text-xs font-semibold text-gray-700 bg-white/90 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-[#EAE6DF] shadow-2xs">
             <div className="flex items-center gap-1.5 text-emerald-800 font-bold text-[11px]">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              Gemini 3.5 Engine
+              Spring Boot 3 (Java 17) Engine
             </div>
             <span className="w-1 h-1 rounded-full bg-gray-300"></span>
             <div className="text-[#855E15] font-semibold text-[11px] flex items-center gap-1">
               <Sparkles className="w-3 h-3 text-[#D4AF37]" />
-              Adaptive Follow-Ups
+              Adaptive Voice AI
             </div>
           </div>
 
