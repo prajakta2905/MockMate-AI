@@ -193,6 +193,17 @@ docker run -p 8080:8080 -e PORT=8080 mockmate-ai
 ```
 The full-stack application will run as a unified service at `http://localhost:8080`.
 
+### Deploying on Vercel (via `Dockerfile.vercel`)
+MockMate AI includes native **`Dockerfile.vercel`** configuration for Vercel Fluid Compute containers:
+1. Push this repository to GitHub.
+2. Sign in to [Vercel](https://vercel.com) with GitHub.
+3. Click **"Add New..."** -> **"Project"** and import `MockMateAI`.
+4. Vercel automatically detects `Dockerfile.vercel` and builds the production container.
+5. In **Environment Variables**, add your keys if desired:
+   - `GROQ_API_KEY` (or `VITE_GROK_API_KEY`)
+   - `GEMINI_API_KEY` (or `VITE_GEMINI_API_KEY`)
+6. Click **Deploy** to get your free production domain (`https://mockmate-ai.vercel.app`).
+
 ---
 
 ## Future Improvements
