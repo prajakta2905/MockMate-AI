@@ -41,4 +41,4 @@ ENV PORT=8080
 ENV JAVA_OPTS="-Xmx384m -Xms128m -XX:+UseG1GC"
 EXPOSE 8080
 
-ENTRYPOINT ["sh", "-c", "java ${JAVA_OPTS} -Dserver.port=${PORT} -Djava.security.egd=file:/dev/./urandom -jar app.jar"]
+ENTRYPOINT ["sh", "-c", "java ${JAVA_OPTS} -Dserver.port=${PORT} -Dserver.address=0.0.0.0 -Djava.security.egd=file:/dev/./urandom -jar app.jar"]
