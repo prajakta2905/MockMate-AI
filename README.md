@@ -1,10 +1,13 @@
 # MockMate AI — Full Stack AI Mock Interview Platform
 
+[![Live Demo](https://img.shields.io/badge/Demo-Live_on_Render-success.svg)](https://mockmateai-nsfb.onrender.com/)
 [![Java](https://img.shields.io/badge/Java-17-orange.svg)](https://openjdk.org/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3.4-brightgreen.svg)](https://spring.io/projects/spring-boot)
 [![Spring Data JPA](https://img.shields.io/badge/JPA-Hibernate-blue.svg)](https://spring.io/projects/spring-data-jpa)
 [![React](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
 [![License](https://img.shields.io/badge/License-MIT-lightgrey.svg)](LICENSE)
+
+> 🌐 **Live Application**: [https://mockmateai-nsfb.onrender.com](https://mockmateai-nsfb.onrender.com)
 
 MockMate AI is an interactive mock interview preparation platform built with **Java 17**, **Spring Boot 3**, **Spring Data JPA (Hibernate)**, and **React 19**.
 
