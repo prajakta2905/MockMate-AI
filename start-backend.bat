@@ -1,6 +1,6 @@
 @echo off
 title MockMate AI — Spring Boot REST Backend
-cd /d "%~dp0mockmate-java"
+cd /d "%~dp0backend"
 set "JAVA_HOME=C:\Users\Hp\.jdks\openjdk-20.0.2"
 set "MAVEN_HOME=%~dp0maven\apache-maven-3.9.6"
 set "PATH=%JAVA_HOME%\bin;%MAVEN_HOME%\bin;%PATH%"

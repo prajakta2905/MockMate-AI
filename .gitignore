@@ -1,17 +1,14 @@
-# Dependencies & Binaries
+# Dependencies & Build Artifacts
 node_modules/
-maven/
-target/
 dist/
-mockmate-java/src/main/resources/static/assets/
-*.class
-*.jar
-*.war
+target/
+backend/target/
+maven/
+backend/src/main/resources/static/assets/
 
-# Environment & Secrets
+# Environment Variables & Secrets
 .env
-.env.local
-.env.*.local
+.env*
 !.env.example
 
 # Logs & Temporary Files
@@ -22,7 +19,7 @@ yarn-error.log*
 .vite/
 tsconfig.tsbuildinfo
 
-# IDE & Editor files
+# IDE & Editor Configs
 .vscode/
 .idea/
 *.suo
