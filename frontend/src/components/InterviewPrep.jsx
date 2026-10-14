@@ -10,38 +10,42 @@ export default function InterviewPrep({ resume, setup, onReadyToStart, onBack })
   const [micStatus, setMicStatus] = useState('checking'); // 'checking' | 'ready' | 'denied'
   const [micVolume, setMicVolume] = useState(0);
 
+  const fetchQuestions = async () => {
+    try {
+      setLoading(true);
+
+      // 1. Primary: AI Question Generator tailored directly to candidate's uploaded resume, skills & projects
+      const pool = await generateQuestionPoolWithGemini(
+        resume,
+        setup.type,
+        setup.durationMinutes
+      );
+
+      if (pool && (pool.warmupQuestion || pool.skillsQuestions?.length > 0 || pool.technicalQuestions?.length > 0 || pool.foundationalQuestion)) {
+        setQuestionPool(pool);
+        setLoading(false);
+        return;
+      }
+
+      // 2. Secondary Fallback: Java Spring Boot REST Endpoint (/api/interview/questions)
+      const javaRes = await generateQuestionsWithJavaBackend(resume);
+      if (javaRes?.success && javaRes.pool) {
+        setQuestionPool(javaRes.pool);
+        setLoading(false);
+        return;
+      }
+
+      // 3. Last-resort fallback to context-aware pool
+      setQuestionPool(pool);
+      setLoading(false);
+    } catch (err) {
+      console.error('Error generating question pool:', err);
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     let isMounted = true;
-
-    async function loadQuestions() {
-      try {
-        setLoading(true);
-
-        // 1. Primary: Java Spring Boot REST Endpoint (/api/interview/questions)
-        const javaRes = await generateQuestionsWithJavaBackend(resume);
-        if (javaRes?.success && javaRes.pool) {
-          if (isMounted) {
-            setQuestionPool(javaRes.pool);
-            setLoading(false);
-          }
-          return;
-        }
-
-        // 2. Fallback: Client-side generation
-        const pool = await generateQuestionPoolWithGemini(
-          resume,
-          setup.type,
-          setup.durationMinutes
-        );
-        if (isMounted) {
-          setQuestionPool(pool);
-          setLoading(false);
-        }
-      } catch (err) {
-        console.error('Error generating question pool:', err);
-        if (isMounted) setLoading(false);
-      }
-    }
 
     async function checkMic() {
       const ok = await speechService.setupAudioAnalyser((vol) => {
@@ -52,55 +56,113 @@ export default function InterviewPrep({ resume, setup, onReadyToStart, onBack })
       }
     }
 
-    loadQuestions();
+    fetchQuestions();
     checkMic();
 
     return () => {
       isMounted = false;
-      speechService.stopVolumeCheck();
+      speechService.releaseMediaStream();
     };
   }, [resume, setup]);
 
-  const handleBegin = () => {
-    speechService.warmup();
+  const firstName = cleanCandidateName(resume?.name).split(' ')[0] || 'Candidate';
+  const targetRole = resume?.targetRole || 'Software Engineer';
+  const primaryProject = resume?.projects?.[0]?.name || 'your primary engineering project';
+
+  const normalizeQuestion = (q, fallbackCategory = 'Technical', defaultText = '') => {
+    if (!q) return null;
+    let text = '';
+    if (typeof q === 'string') {
+      text = q.trim();
+    } else if (typeof q === 'object') {
+      text = (q.question || q.questionText || q.text || '').trim();
+    }
+    if (!text) {
+      text = defaultText;
+    }
+    if (!text) return null;
+
+    return {
+      id: q.id || `q-${Math.random().toString(36).substr(2, 8)}`,
+      category: q.category || fallbackCategory,
+      question: text,
+      questionText: text,
+      focus: q.focus || q.contextHint || '',
+      difficulty: q.difficulty || 'medium'
+    };
+  };
+
+  // Compile full progressive questions list
+  const compiledQuestions = React.useMemo(() => {
     let allQuestions = [];
 
     // 1. Warm-up introduction ("Tell me about yourself")
     if (questionPool?.warmupQuestion) {
-      allQuestions.push(questionPool.warmupQuestion);
+      const q = normalizeQuestion(
+        questionPool.warmupQuestion,
+        'Introduction',
+        `Hello ${firstName}, welcome to the interview today! To start us off, could you please give a brief overview of yourself, your background, and what you specialize in as a ${targetRole}?`
+      );
+      if (q) allQuestions.push(q);
     }
 
     // 2. Medium engineering fundamentals & approach
     if (questionPool?.foundationalQuestion) {
-      allQuestions.push(questionPool.foundationalQuestion);
+      const q = normalizeQuestion(
+        questionPool.foundationalQuestion,
+        'Engineering Approach',
+        `When starting a new project or tackling a complex feature from scratch, what is your standard approach for planning architecture and ensuring maintainability?`
+      );
+      if (q) allQuestions.push(q);
     }
 
     // 3. Core technical skills & frameworks
-    if (questionPool?.skillsQuestions?.length > 0) {
-      allQuestions.push(...questionPool.skillsQuestions);
-    } else if (questionPool?.technicalQuestions?.length > 0) {
-      allQuestions.push(...questionPool.technicalQuestions);
+    const techPool = (questionPool?.skillsQuestions?.length > 0)
+      ? questionPool.skillsQuestions
+      : (questionPool?.technicalQuestions || []);
+    
+    if (Array.isArray(techPool) && techPool.length > 0) {
+      techPool.forEach((item) => {
+        const q = normalizeQuestion(
+          item,
+          'Technical',
+          `Can you walk me through your technical experience and trade-offs when building systems as a ${targetRole}?`
+        );
+        if (q) allQuestions.push(q);
+      });
     }
 
     // 4. Project deep-dive & blockers
     if (questionPool?.projectQuestions?.length > 0) {
-      allQuestions.push(...questionPool.projectQuestions);
+      questionPool.projectQuestions.forEach((item) => {
+        const q = normalizeQuestion(
+          item,
+          'Project Architecture',
+          `Looking at your project ${primaryProject}, can you walk me through the end-to-end architecture and key trade-offs?`
+        );
+        if (q) allQuestions.push(q);
+      });
     }
 
     // 5. Behavioral / STAR scenarios
     if (questionPool?.behavioralQuestions?.length > 0) {
-      allQuestions.push(...questionPool.behavioralQuestions);
+      questionPool.behavioralQuestions.forEach((item) => {
+        const q = normalizeQuestion(
+          item,
+          'Behavioral',
+          `Tell me about a challenging technical decision you had to make and how you handled disagreement within your team.`
+        );
+        if (q) allQuestions.push(q);
+      });
     }
 
-    const firstName = cleanCandidateName(resume?.name).split(' ')[0];
-    const targetRole = resume?.targetRole || 'Software Engineer';
-
-    onReadyToStart({
-      questionPool: allQuestions.length > 0 ? allQuestions : [
+    if (allQuestions.length === 0) {
+      allQuestions = [
         {
           id: 'q1-warmup',
           category: 'Introduction & Background',
           question: `Hello ${firstName}, welcome to the interview today! To start us off, could you please give a brief overview of yourself, your background, and what you specialize in as a ${targetRole}?`,
+          questionText: `Hello ${firstName}, welcome to the interview today! To start us off, could you please give a brief overview of yourself, your background, and what you specialize in as a ${targetRole}?`,
           focus: 'Career overview, communication clarity, and introduction',
           difficulty: 'warm-up'
         },
@@ -108,17 +170,30 @@ export default function InterviewPrep({ resume, setup, onReadyToStart, onBack })
           id: 'q2-fundamentals',
           category: 'Engineering Mindset & Approach',
           question: `When starting a new project or tackling a complex feature from scratch, what is your standard approach for planning architecture, choosing the right stack, and ensuring maintainability?`,
+          questionText: `When starting a new project or tackling a complex feature from scratch, what is your standard approach for planning architecture, choosing the right stack, and ensuring maintainability?`,
           focus: 'Systematic problem breakdown, architectural thinking, and best practices',
           difficulty: 'medium'
         },
         {
           id: 'q3-project',
           category: 'Project Deep-Dive',
-          question: `Looking at your project ${resume?.projects?.[0]?.name || 'primary engineering project'}, can you walk me through the end-to-end architecture and key trade-offs?`,
+          question: `Looking at your project ${primaryProject}, can you walk me through the end-to-end architecture and key trade-offs?`,
+          questionText: `Looking at your project ${primaryProject}, can you walk me through the end-to-end architecture and key trade-offs?`,
           focus: 'Architectural trade-offs, scalability, and system modularity',
           difficulty: 'hard'
         }
-      ]
+      ];
+    }
+
+    return allQuestions;
+  }, [questionPool, firstName, targetRole, primaryProject]);
+
+  const handleBegin = () => {
+    speechService.releaseMediaStream();
+    speechService.warmup();
+
+    onReadyToStart({
+      questionPool: compiledQuestions
     });
   };
 
@@ -144,8 +219,8 @@ export default function InterviewPrep({ resume, setup, onReadyToStart, onBack })
             <RefreshCw className="w-5 h-5 text-[#D4AF37] animate-spin" />
           </div>
           <div>
-            <h4 className="text-xs font-bold text-gray-900">Synthesizing Progressive Question Flow...</h4>
-            <p className="text-[10px] text-gray-500">Structuring: Introduction → Medium Fundamentals → Technical Skills → Project Deep-Dives → STAR Behavioral</p>
+            <h4 className="text-xs font-bold text-gray-900">Synthesizing Fresh Questions from AI...</h4>
+            <p className="text-[10px] text-gray-500">Generating unique, resume-specific probes for your projects & skills</p>
           </div>
           <div className="w-48 mx-auto h-1.5 bg-gray-100 rounded-full overflow-hidden">
             <div className="h-full bg-gradient-to-r from-[#D4AF37] to-[#E2B857] animate-pulse w-3/4 rounded-full"></div>
@@ -153,6 +228,29 @@ export default function InterviewPrep({ resume, setup, onReadyToStart, onBack })
         </div>
       ) : (
         <div className="space-y-3">
+          {/* Header Action Bar with Regenerate Button */}
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-[#D4AF37]" />
+                Tailored Questions ({compiledQuestions.length})
+              </span>
+              <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                AI Live Session
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={fetchQuestions}
+              disabled={loading}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#FCF9EE] text-[#855E15] border border-[#EEDD9E] hover:bg-[#F6EFC8] active:scale-95 transition-all cursor-pointer shadow-2xs"
+              title="Click to generate completely new questions from AI"
+            >
+              <RefreshCw className={`w-3 h-3 text-[#D4AF37] ${loading ? 'animate-spin' : ''}`} />
+              <span>Regenerate New Questions</span>
+            </button>
+          </div>
+
           {/* Progressive Question Sequence Overview (4 cards) */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <div className="p-3 bg-white rounded-2xl border border-[#EAE6DF] shadow-2xs space-y-0.5">
@@ -177,6 +275,42 @@ export default function InterviewPrep({ resume, setup, onReadyToStart, onBack })
               <span className="text-[9px] uppercase font-bold text-purple-600 block">Phase 4</span>
               <p className="text-xs font-bold text-gray-900">Behavioral</p>
               <p className="text-[9px] text-gray-400 truncate">Team & STAR scenarios</p>
+            </div>
+          </div>
+
+          {/* Question Roadmap Preview */}
+          <div className="luxury-card p-3.5 rounded-2xl bg-white border border-[#EAE6DF] space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
+                Prepared Question Flow
+              </span>
+              <span className="text-[10px] text-gray-400">
+                Adapts dynamically based on your spoken answers
+              </span>
+            </div>
+            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+              {compiledQuestions.map((q, idx) => (
+                <div key={q.id || idx} className="p-2 rounded-xl bg-gray-50 border border-gray-100 flex items-start gap-2.5 text-left hover:bg-gray-100/70 transition-colors">
+                  <span className="w-5 h-5 rounded-full bg-white border border-gray-200 text-[10px] font-bold text-gray-700 flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                    {idx + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span className="text-[9px] font-bold uppercase px-1.5 py-0.2 rounded bg-[#FCF9EE] text-[#855E15] border border-[#EEDD9E]">
+                        {q.category || 'Technical'}
+                      </span>
+                      {q.focus && (
+                        <span className="text-[9px] text-gray-400 truncate">
+                          • {q.focus}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-800 font-medium line-clamp-2">
+                      {q.question}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 

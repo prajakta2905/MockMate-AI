@@ -23,7 +23,7 @@ export default function ResumeUpload({ onResumeAnalyzed }) {
 
     setIsProcessing(true);
     setErrorMsg(null);
-    setProcessingStage('Spring Boot Engine & AI analyzing resume...');
+    setProcessingStage('AI Analyzing Resume & Tailoring Questions...');
 
     try {
       // 1. Primary: Java Spring Boot Backend
@@ -119,7 +119,7 @@ export default function ResumeUpload({ onResumeAnalyzed }) {
 
     setIsProcessing(true);
     setErrorMsg(null);
-    setProcessingStage('Spring Boot Apache PDFBox & AI analyzing resume...');
+    setProcessingStage('AI Analyzing Resume & Tailoring Questions...');
 
     try {
       // 1. Primary: Direct Spring Boot Apache PDFBox + AI extraction
@@ -157,7 +157,7 @@ export default function ResumeUpload({ onResumeAnalyzed }) {
             rawText: p.rawResumeText || ''
           };
           setParsedData(formatted);
-          setProcessingStage('Profile extracted with AI by Spring Boot!');
+          setProcessingStage('Profile Analyzed • Ready for AI Question Generation!');
           return;
         }
 
@@ -169,7 +169,7 @@ export default function ResumeUpload({ onResumeAnalyzed }) {
       }
 
       // 2. Fallback: Client-side PDF extraction + AI analysis
-      setProcessingStage('Extracting PDF text and analyzing with AI...');
+      setProcessingStage('AI Analyzing Resume & Tailoring Questions...');
       const text = await extractTextFromPDF(file);
       await processResumeText(text, file.name);
     } catch (err) {
@@ -300,7 +300,7 @@ export default function ResumeUpload({ onResumeAnalyzed }) {
               </div>
               <div className="space-y-1.5">
                 <h3 className="text-lg font-extrabold text-slate-900">{processingStage}</h3>
-                <p className="text-sm text-gray-500 font-medium">Extracting candidate name, projects, and tech stack...</p>
+                <p className="text-sm text-gray-500 font-medium">Extracting tech stack & preparing personalized interview questions and answers...</p>
               </div>
               <div className="w-64 mx-auto h-2 bg-gray-100 rounded-full overflow-hidden mt-4 shadow-inner">
                 <div className="h-full bg-gradient-to-r from-[#D4AF37] to-[#E2B857] animate-pulse w-3/4 rounded-full"></div>

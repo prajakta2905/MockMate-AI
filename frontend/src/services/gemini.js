@@ -52,7 +52,7 @@ export function getCandidateFirstName(name) {
 /**
  * Call Groq Cloud API for ultra-fast and reliable JSON extraction
  */
-async function callGroqJson(prompt, systemInstruction = '') {
+async function callGroqJson(prompt, systemInstruction = '', temperature = 0.85) {
   const grokApiKey = getGrokApiKey();
   if (!grokApiKey || !grokApiKey.startsWith('gsk_')) {
     throw new Error('NO_GROQ_KEY');
@@ -71,7 +71,7 @@ async function callGroqJson(prompt, systemInstruction = '') {
         { role: 'system', content: `${systemInstruction}\nYou MUST output strictly valid JSON with no markdown wrapping.` },
         { role: 'user', content: prompt }
       ],
-      temperature: 0.2,
+      temperature: temperature,
       response_format: { type: 'json_object' }
     })
   });
@@ -90,7 +90,7 @@ async function callGroqJson(prompt, systemInstruction = '') {
           { role: 'system', content: `${systemInstruction}\nYou MUST output strictly valid JSON.` },
           { role: 'user', content: prompt }
         ],
-        temperature: 0.2,
+        temperature: temperature,
         response_format: { type: 'json_object' }
       })
     });
@@ -112,7 +112,7 @@ async function callGroqJson(prompt, systemInstruction = '') {
 /**
  * Call Gemini API endpoint with JSON prompt
  */
-async function callGemini(prompt, systemInstruction = '', apiKeyOverride = null) {
+async function callGemini(prompt, systemInstruction = '', apiKeyOverride = null, temperature = 0.85) {
   const apiKey = apiKeyOverride || getGeminiApiKey();
   if (!apiKey) {
     throw new Error('NO_API_KEY');
@@ -133,7 +133,7 @@ async function callGemini(prompt, systemInstruction = '', apiKeyOverride = null)
           }
         ],
         generationConfig: {
-          temperature: 0.2,
+          temperature: temperature,
           topP: 0.95,
           responseMimeType: 'application/json'
         }
@@ -271,12 +271,23 @@ export async function generateQuestionPoolWithGemini(parsedResume, interviewType
   const primaryProjects = parsedResume.projects?.map(p => `${p.name} (${p.techStack?.join(', ') || ''}): ${p.description || ''}`).join('\n') || 'Full Stack Application with modern frameworks';
   const skillsList = Object.values(parsedResume.skills || {}).flat().join(', ');
 
+  const focusAngles = [
+    "Focus Theme: High-level System Architecture, Scalability, and Microservices Modularity",
+    "Focus Theme: Concurrency, Database Contention, and Latency Optimization",
+    "Focus Theme: Fault-tolerance, Circuit Breakers, and Production Incident Recovery",
+    "Focus Theme: Data Consistency, ACID Transactions, and Caching Strategies",
+    "Focus Theme: API Design, Authentication Workflows, and Security Hardening",
+    "Focus Theme: Real-world Implementation Blockers, Deep Debugging, and Testing"
+  ];
+  const selectedFocus = focusAngles[Math.floor(Math.random() * focusAngles.length)];
+  const randomSalt = Math.floor(Math.random() * 900000 + 100000);
+
   const systemInstruction = `You are a Senior Technical Interviewer conducting a concise voice interview for ${firstName} for a ${role} position.
 CRITICAL MANDATORY RULES FOR QUESTIONS:
 - Every question MUST be SHORT, DIRECT, and PUNCHY (strictly between 10 to 16 words).
 - NO long compound sentences or multi-part questions.
 - It will be spoken out loud via Text-to-Speech, so it must be fast to hear and easy to answer.
-- You must generate UNIQUE, NOVEL questions each time based on the candidate's resume. Do NOT just output the example questions.
+- You must generate COMPLETELY UNIQUE, NOVEL questions each time based on the candidate's resume. NEVER repeat previous or textbook questions.
 1. Q1 Warm-up: Quick introduction tailored to their background.
 2. Q2 Architecture: High-level problem approach.
 3. Q3 Tech Skill: Core framework question on ${skillsList.slice(0, 30) || 'their tech stack'}.
@@ -336,36 +347,50 @@ Return strictly pure JSON.`;
   };
 
   const prompt = `
-Generate a UNIQUE and NOVEL crisp, short question pool JSON for ${cleanName} (${role}).
-The total interview duration is ${duration} minutes. 
-Use the EXACT JSON schema below, but REPLACE the example questions with your own unique questions tailored to the candidate's resume and projects.
+Generate a completely UNIQUE and NOVEL crisp, short question pool JSON for ${cleanName} (${role}).
+The total interview duration is ${duration} minutes.
+Unique Session Seed: ${randomSalt}_${Date.now()}
+${selectedFocus}
 
-Timestamp to ensure uniqueness: ${Date.now()}
+Candidate Resume Context:
+- Target Role: ${role}
+- Candidate Projects:
+${primaryProjects}
+- Technical Skills:
+${skillsList}
+- Key Experience:
+${parsedResume.experience?.map(e => `${e.role || 'Engineer'} at ${e.company || 'Tech Org'}: ${e.bullets?.join('; ') || ''}`).join('\n') || 'Full stack software development'}
+
+CRITICAL RULES:
+1. Every question MUST be UNIQUE and freshly created. DO NOT repeat standard generic interview questions.
+2. Directly reference and probe the candidate's actual projects (${parsedResume.projects?.map(p => p.name).join(', ') || 'listed projects'}) and frameworks (${skillsList.slice(0, 50)}).
+3. Questions must be short, conversational, and direct (10 to 16 words max).
+4. Use the EXACT JSON schema below, but replace the placeholders with your unique questions:
 
 ${JSON.stringify(schemaObj, null, 2)}
 `;
 
-  // 1. Try Gemini first
+  // 1. Try Groq first with high temperature (0.85) for maximum question diversity
   try {
-    const geminiPool = await callGemini(prompt, systemInstruction, apiKeyOverride);
-    if (geminiPool && (geminiPool.warmupQuestion || geminiPool.technicalQuestions?.length > 0)) {
-      return geminiPool;
-    }
-  } catch (err) {
-    console.warn('Gemini question pool skipped/failed:', err.message);
-  }
-
-  // 2. Try Groq (LLaMA 3.3 70B)
-  try {
-    const groqPool = await callGroqJson(prompt, systemInstruction);
-    if (groqPool && (groqPool.warmupQuestion || groqPool.technicalQuestions?.length > 0)) {
+    const groqPool = await callGroqJson(prompt, systemInstruction, 0.85);
+    if (groqPool && (groqPool.warmupQuestion || groqPool.skillsQuestions?.length > 0 || groqPool.technicalQuestions?.length > 0 || groqPool.foundationalQuestion)) {
       return groqPool;
     }
   } catch (err) {
     console.warn('Groq question pool skipped/failed:', err.message);
   }
 
-  // 3. High-Precision Context-Aware Fallback
+  // 2. Try Gemini with high temperature (0.85)
+  try {
+    const geminiPool = await callGemini(prompt, systemInstruction, apiKeyOverride, 0.85);
+    if (geminiPool && (geminiPool.warmupQuestion || geminiPool.skillsQuestions?.length > 0 || geminiPool.technicalQuestions?.length > 0 || geminiPool.foundationalQuestion)) {
+      return geminiPool;
+    }
+  } catch (err) {
+    console.warn('Gemini question pool skipped/failed:', err.message);
+  }
+
+  // 3. High-Precision Context-Aware Fallback (dynamically randomized)
   return generateContextAwareQuestionPool(parsedResume, interviewType);
 }
 
@@ -428,20 +453,20 @@ Generate a crisp, concise JSON scorecard:
 }
 `;
 
-  // 1. Try Gemini
-  try {
-    const geminiReport = await callGemini(prompt, systemInstruction, apiKeyOverride);
-    if (geminiReport && geminiReport.overallScore) return geminiReport;
-  } catch (err) {
-    console.warn('Gemini report evaluation skipped/failed:', err.message);
-  }
-
-  // 2. Try Groq
+  // 1. Try Groq first (Ultra-low latency Qwen 3.8 / GPT-OSS 20B with VITE_GROK_API_KEY)
   try {
     const groqReport = await callGroqJson(prompt, systemInstruction);
     if (groqReport && groqReport.overallScore) return groqReport;
   } catch (err) {
     console.warn('Groq report evaluation skipped/failed:', err.message);
+  }
+
+  // 2. Try Gemini
+  try {
+    const geminiReport = await callGemini(prompt, systemInstruction, apiKeyOverride);
+    if (geminiReport && geminiReport.overallScore) return geminiReport;
+  } catch (err) {
+    console.warn('Gemini report evaluation skipped/failed:', err.message);
   }
 
   return generateFallbackFinalReport(interviewData);
@@ -621,69 +646,204 @@ function parseResumeFromRawTextDirectly(text) {
 }
 
 function generateContextAwareQuestionPool(resume, type) {
-  const cleanName = cleanCandidateName(resume.name);
+  const cleanName = cleanCandidateName(resume?.name);
   const firstName = getCandidateFirstName(cleanName);
-  const targetRole = resume.targetRole || 'Software Engineer';
-  const primaryProject = resume.projects?.[0]?.name || 'your primary engineering project';
-  const primaryTech = resume.skills?.frontend?.[0] || 'React';
-  const backendTech = resume.skills?.backend?.[0] || 'Node.js';
+  const targetRole = resume?.targetRole || 'Software Engineer';
+  const projects = resume?.projects || [];
+  const primaryProject = projects[0]?.name || 'your primary engineering project';
+  const secondaryProject = projects[1]?.name || 'your secondary project';
+  
+  // Extract all matched technical skills
+  const skillsList = Object.values(resume?.skills || {}).flat().filter(Boolean);
+  const primaryTech = resume?.skills?.frontend?.[0] || 'React';
+  const backendTech = resume?.skills?.backend?.[0] || 'Java / Spring Boot';
+  const databaseTech = resume?.skills?.backend?.find(s => /sql|postgres|mongo|redis/i.test(s)) || 'PostgreSQL';
+
+  // Helpers to pick randomly
+  const pickOne = (arr) => {
+    if (!arr || arr.length === 0) return '';
+    return arr[Math.floor(Math.random() * arr.length)];
+  };
+
+  const pickMultiple = (arr, count = 1) => {
+    if (!arr || arr.length === 0) return [];
+    const shuffled = [...arr].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, Math.min(count, shuffled.length));
+  };
+
+  // 1. Diverse Warm-up question variations
+  const warmupOptions = [
+    `Hi ${firstName}, welcome! Could you give a brief introduction of yourself, your journey, and what you specialize in as a ${targetRole}?`,
+    `Hello ${firstName}! To kick things off, could you walk me through your engineering background and the core stack you used in ${primaryProject}?`,
+    `Welcome ${firstName}! Can you share a quick snapshot of your technical career, key achievements, and what excites you about this ${targetRole} role?`,
+    `Hi ${firstName}, great to meet you! Walk me through your background and the primary architectural problems you've worked on recently.`,
+    `Hello ${firstName}, welcome to the interview! To begin, how would you summarize your technical strengths and hands-on experience?`
+  ];
+
+  // 2. Diverse Foundational Engineering Approach variations
+  const foundationalOptions = [
+    `When planning a complex feature from scratch, how do you decide between synchronous REST APIs versus asynchronous event messaging?`,
+    `How do you approach database schema design and indexing to prevent contention and bottlenecks under high concurrent read/write traffic?`,
+    `When designing a new service, what criteria do you use to balance premature optimization versus scalable modular architecture?`,
+    `If a microservice begins experiencing elevated p99 response times in production, walk me through your systematic debugging checklist.`,
+    `In a distributed architecture, how do you handle partial network failures and maintain data consistency across services?`,
+    `When architecting API rate limiting and authentication, what trade-offs do you evaluate between stateless JWTs and stateful sessions?`
+  ];
+
+  // 3. Dynamic Core Skills question bank based on candidate's skills
+  const skillsOptions = [];
+  
+  // Java / Spring Boot specific
+  if (/java|spring/i.test(targetRole) || skillsList.some(s => /java|spring/i.test(s))) {
+    skillsOptions.push(
+      {
+        category: 'Spring & Architecture',
+        question: `In Spring Boot, how do you configure HikariCP connection pool sizing and prevent thread starvation under sudden load spikes?`,
+        focus: 'Database connection pooling & concurrency'
+      },
+      {
+        category: 'JVM Internals',
+        question: `How does the Java Memory Model handle heap allocation and GC pause times with modern collectors like G1 or ZGC?`,
+        focus: 'Memory management & Garbage Collection'
+      },
+      {
+        category: 'JPA & Persistence',
+        question: `In Hibernate and JPA, how do you identify the N+1 query problem, and when do you use JOIN FETCH versus Entity Graphs?`,
+        focus: 'ORM performance optimization'
+      },
+      {
+        category: 'Concurrency & Locking',
+        question: `Explain the practical differences between Optimistic and Pessimistic locking in database transactions, and how you implement them in JPA.`,
+        focus: 'Transaction isolation & concurrency'
+      }
+    );
+  }
+
+  // React / Frontend specific
+  if (/react|frontend|fullstack|web/i.test(targetRole) || skillsList.some(s => /react|vue|angular|next/i.test(s))) {
+    skillsOptions.push(
+      {
+        category: 'Frontend Performance',
+        question: `In React, how do you diagnose unnecessary component re-renders, and when do you reach for memoization with useMemo and useCallback?`,
+        focus: 'React rendering pipeline & performance'
+      },
+      {
+        category: 'State Management',
+        question: `How do you draw architectural boundaries between server-cached state and client UI state in a scalable web application?`,
+        focus: 'State synchronization & architecture'
+      },
+      {
+        category: 'Web Vitals',
+        question: `Walk me through how you optimize Core Web Vitals, specifically Largest Contentful Paint and Interaction to Next Paint.`,
+        focus: 'Page speed & bundle optimization'
+      }
+    );
+  }
+
+  // Database / Caching / Messaging
+  skillsOptions.push(
+    {
+      category: 'Database Optimization',
+      question: `In ${databaseTech}, how do you evaluate an EXPLAIN query plan to identify slow sequential scans and optimize composite indexes?`,
+      focus: 'Query optimization & indexing'
+    },
+    {
+      category: 'Caching Strategies',
+      question: `When implementing Redis caching, how do you prevent cache stampedes, dogpiling, and stale data synchronization issues?`,
+      focus: 'Distributed caching & invalidation'
+    },
+    {
+      category: 'API Security',
+      question: `When designing public APIs, how do you protect against brute force and DDoS attacks while maintaining low latency?`,
+      focus: 'API gateway & security boundaries'
+    }
+  );
+
+  const selectedSkillsQ = pickMultiple(skillsOptions, 2);
+
+  // 4. Dynamic Project Questions injecting candidate's actual projects
+  const projectOptions = [
+    {
+      category: 'Project Architecture',
+      question: `In ${primaryProject}, can you walk me through the high-level data flow between your frontend, backend, and database?`,
+      focus: 'End-to-end data flow & modularity'
+    },
+    {
+      category: 'Production Challenges',
+      question: `What was the most challenging technical roadblock or bug you resolved while building ${primaryProject}?`,
+      focus: 'Root cause analysis & debugging'
+    },
+    {
+      category: 'Scalability & Trade-offs',
+      question: `If ${primaryProject} had to handle 10x traffic overnight, which component would bottleneck first and how would you scale it?`,
+      focus: 'Scaling bottlenecks & reliability'
+    },
+    {
+      category: 'Engineering Decisions',
+      question: `Looking back at ${secondaryProject !== 'your secondary project' ? secondaryProject : primaryProject}, what technical decision would you architect differently today?`,
+      focus: 'Architectural hindsight & trade-offs'
+    }
+  ];
+
+  const selectedProjectQ = pickMultiple(projectOptions, 2);
+
+  // 5. Dynamic Behavioral Questions
+  const behavioralOptions = [
+    {
+      category: 'Team Collaboration',
+      question: `Tell me about a technical disagreement you had with a teammate or lead. How did you resolve it constructively?`,
+      focus: 'Constructive conflict resolution & STAR'
+    },
+    {
+      category: 'Ownership & Deadlines',
+      question: `Describe a situation where a critical production bug appeared right before a release. How did you triage and deliver?`,
+      focus: 'High-pressure troubleshooting & STAR'
+    },
+    {
+      category: 'Mentorship & Standards',
+      question: `Tell me about a time you identified technical debt in a codebase and convinced your team to refactor it.`,
+      focus: 'Code quality & engineering leadership'
+    }
+  ];
+
+  const selectedBehavioralQ = pickMultiple(behavioralOptions, 1);
 
   return {
     warmupQuestion: {
       id: 'q1-warmup',
       category: 'Introduction',
-      question: `Hi ${firstName}, welcome! Could you give a brief introduction of yourself and your background?`,
+      question: pickOne(warmupOptions),
       focus: 'Communication clarity and career intro',
       difficulty: 'warm-up'
     },
     foundationalQuestion: {
       id: 'q2-fundamentals',
       category: 'Engineering Approach',
-      question: 'When starting a complex feature, how do you break down requirements and plan the architecture?',
+      question: pickOne(foundationalOptions),
       focus: 'Systematic problem breakdown',
       difficulty: 'medium'
     },
-    skillsQuestions: [
-      {
-        id: 'q3-skills-1',
-        category: 'Core Skills',
-        question: `Working with ${primaryTech} and ${backendTech}, how do you optimize performance and handle bottlenecks?`,
-        focus: 'Framework optimization and concurrency',
-        difficulty: 'medium'
-      },
-      {
-        id: 'q3-skills-2',
-        category: 'Security & Auth',
-        question: 'When designing authentication, how do you manage secure session rotation and token storage?',
-        focus: 'Security fundamentals',
-        difficulty: 'medium'
-      }
-    ],
-    projectQuestions: [
-      {
-        id: 'q4-project-arch',
-        category: 'Project Architecture',
-        question: `Can you walk me through the high-level architecture of your project, ${primaryProject}?`,
-        focus: 'Architectural trade-offs and scalability',
-        difficulty: 'medium'
-      },
-      {
-        id: 'q5-project-blocker',
-        category: 'Production Challenges',
-        question: `In ${primaryProject}, what was the most difficult technical bug or blocker you resolved?`,
-        focus: 'Root cause analysis and debugging',
-        difficulty: 'hard'
-      }
-    ],
-    behavioralQuestions: [
-      {
-        id: 'q6-behavioral',
-        category: 'Team Collaboration',
-        question: 'Tell me about a technical disagreement you had with a teammate. How did you resolve it?',
-        focus: 'Constructive communication & STAR',
-        difficulty: 'medium'
-      }
-    ]
+    skillsQuestions: selectedSkillsQ.map((item, i) => ({
+      id: `q3-skills-${i + 1}`,
+      category: item.category,
+      question: item.question,
+      focus: item.focus,
+      difficulty: 'medium'
+    })),
+    projectQuestions: selectedProjectQ.map((item, i) => ({
+      id: `q4-project-${i + 1}`,
+      category: item.category,
+      question: item.question,
+      focus: item.focus,
+      difficulty: i === 0 ? 'medium' : 'hard'
+    })),
+    behavioralQuestions: selectedBehavioralQ.map((item, i) => ({
+      id: `q6-behavioral-${i + 1}`,
+      category: item.category,
+      question: item.question,
+      focus: item.focus,
+      difficulty: 'medium'
+    }))
   };
 }
 

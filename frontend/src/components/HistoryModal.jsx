@@ -124,7 +124,7 @@ export default function HistoryModal({ isOpen, onClose, onOpenAuth }) {
             <div className="py-8 text-center space-y-2 p-4 bg-amber-50 rounded-2xl border border-amber-200 text-amber-800">
               <p className="text-xs font-semibold">{error}</p>
               <p className="text-[11px] text-amber-700">
-                Connected to Java Spring Boot REST API. Complete an interview to view your analytics.
+                Connected to AI Engine. Complete an interview to view your analytics.
               </p>
             </div>
           ) : history.length === 0 ? (

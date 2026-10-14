@@ -8,7 +8,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 
 @Service
 public class InterviewCoachService {
@@ -26,21 +28,35 @@ public class InterviewCoachService {
 
     /**
      * Generates a tailored 5-question pool based on the candidate's resume and target role.
+     * Guaranteed to produce fresh, non-repeating questions on each generation.
      */
     public QuestionPool generateQuestionPool(CandidateProfile profile) {
         QuestionPool pool = new QuestionPool();
-        String role = profile.getTargetRole();
-        List<String> skills = profile.getExtractedSkills();
+        String role = profile.getTargetRole() != null ? profile.getTargetRole() : "Software Engineer";
+        List<String> skills = profile.getExtractedSkills() != null ? profile.getExtractedSkills() : new ArrayList<>();
         String skillsStr = String.join(", ", skills);
+
+        List<String> projectNames = new ArrayList<>();
+        if (profile.getExtractedProjects() != null && !profile.getExtractedProjects().isEmpty()) {
+            projectNames.addAll(profile.getExtractedProjects());
+        }
+        if (profile.getProjects() != null) {
+            for (java.util.Map<String, Object> p : profile.getProjects()) {
+                if (p != null && p.get("name") != null) {
+                    projectNames.add(p.get("name").toString());
+                }
+            }
+        }
+        String projectsStr = projectNames.isEmpty() ? "Engineering Project Portfolio" : String.join(", ", projectNames);
 
         // Attempt AI generation if Groq or Gemini is available
         if (groqService.isConfigured() || geminiService.isConfigured()) {
             try {
-                String prompt = buildQuestionPoolPrompt(profile.getFullName(), role, skillsStr);
+                String prompt = buildQuestionPoolPrompt(profile.getFullName(), role, skillsStr, projectsStr);
                 String rawResponse = null;
 
                 if (groqService.isConfigured()) {
-                    rawResponse = groqService.callGroq("You are a principal technical interviewer. Return JSON only.", prompt);
+                    rawResponse = groqService.callGroq("You are a principal technical interviewer at Google/Meta. Return JSON only.", prompt);
                 } else if (geminiService.isConfigured()) {
                     rawResponse = geminiService.callGemini(prompt);
                 }
@@ -56,18 +72,36 @@ public class InterviewCoachService {
             }
         }
 
-        // Fallback to local questions if external AI is unavailable
+        // Fallback to dynamic randomized local questions if external AI is unavailable
         return getCuratedLocalPool(profile);
     }
 
-    private String buildQuestionPoolPrompt(String name, String role, String skills) {
-        return "Generate a structured interview for " + name + " applying for " + role + ".\n"
-                + "Skills listed: " + skills + "\n"
+    private String buildQuestionPoolPrompt(String name, String role, String skills, String projects) {
+        String[] randomThemes = {
+            "High Concurrency, Thread Contention & Microservices Scaling",
+            "Distributed Data Consistency, Caching Hierarchies & Deadlock Prevention",
+            "Production Fault-Tolerance, Incident Postmortems & Resilience",
+            "API Gateway Security, Token Architectures & Zero-Trust Verification",
+            "System Bottleneck Profiling, JVM Tuning & Algorithmic Optimization"
+        };
+        int themeIdx = (int) (System.currentTimeMillis() % randomThemes.length);
+        String selectedTheme = randomThemes[themeIdx];
+        long seed = System.currentTimeMillis();
+
+        return "Generate a structured, highly realistic 5-question interview for " + name + " applying for " + role + ".\n"
+                + "Candidate Skills: " + skills + "\n"
+                + "Candidate Projects: " + projects + "\n"
+                + "Focus Theme for this session: " + selectedTheme + "\n"
+                + "Unique Session Seed: " + seed + "\n"
+                + "CRITICAL INSTRUCTIONS:\n"
+                + "1. Generate completely unique, fresh questions. NEVER return static textbook definitions (e.g. 'What is OOP?').\n"
+                + "2. Questions must be specific scenario probes based on their skills (" + skills + ") and projects (" + projects + ").\n"
+                + "3. Vary the questions dynamically every time so that each interview feels brand new.\n"
                 + "Return JSON with format:\n"
                 + "{\n"
-                + "  \"warmup\": \"Tell me about yourself and your background with " + role + "\",\n"
-                + "  \"technical\": [\"question 1\", \"question 2\", \"question 3\"],\n"
-                + "  \"behavioral\": [\"question 4\"]\n"
+                + "  \"warmup\": \"Tell me about yourself, your background, and your key achievements in " + role + "\",\n"
+                + "  \"technical\": [\"technical scenario question 1\", \"technical scenario question 2\", \"project architecture question 3\"],\n"
+                + "  \"behavioral\": [\"behavioral STAR question 4\"]\n"
                 + "}";
     }
 
@@ -75,26 +109,63 @@ public class InterviewCoachService {
         try {
             // Clean markdown blocks if present
             String clean = json.replaceAll("```json", "").replaceAll("```", "").trim();
+            int firstBrace = clean.indexOf('{');
+            int lastBrace = clean.lastIndexOf('}');
+            if (firstBrace != -1 && lastBrace != -1 && lastBrace > firstBrace) {
+                clean = clean.substring(firstBrace, lastBrace + 1);
+            }
             JsonNode root = objectMapper.readTree(clean);
 
             QuestionPool pool = new QuestionPool();
-            String warmup = root.path("warmup").asText();
+
+            // 1. Warmup question
+            String warmup = extractQuestionText(root.path("warmup"));
+            if (warmup.isBlank()) {
+                warmup = extractQuestionText(root.path("warmupQuestion"));
+            }
+            if (warmup.isBlank()) {
+                warmup = extractQuestionText(root.path("warmup_question"));
+            }
+            if (warmup.isBlank()) {
+                warmup = "Hello! Could you introduce yourself, your background, and key technical areas you specialize in?";
+            }
             pool.setWarmupQuestion(new InterviewQuestion("q-0", "WARMUP", warmup, "Keep introduction clear and under 2 minutes"));
 
+            // 2. Technical questions
             List<InterviewQuestion> techList = new ArrayList<>();
-            JsonNode techArray = root.path("technical");
+            JsonNode techArray = root.has("technical") ? root.path("technical") : root.path("technicalQuestions");
             int idx = 1;
-            for (JsonNode node : techArray) {
-                techList.add(new InterviewQuestion("q-" + idx, "TECHNICAL", node.asText(), "Focus on architecture, efficiency & trade-offs"));
-                idx++;
+            if (techArray.isArray()) {
+                for (JsonNode node : techArray) {
+                    String qText = extractQuestionText(node);
+                    if (!qText.isBlank()) {
+                        techList.add(new InterviewQuestion("q-" + idx, "TECHNICAL", qText, "Focus on architecture, efficiency & trade-offs"));
+                        idx++;
+                    }
+                }
+            }
+            if (techList.isEmpty()) {
+                // If AI returned empty technical list, force fallback to curated pool
+                return null;
             }
             pool.setTechnicalQuestions(techList);
 
+            // 3. Behavioral questions
             List<InterviewQuestion> behList = new ArrayList<>();
-            JsonNode behArray = root.path("behavioral");
-            for (JsonNode node : behArray) {
-                behList.add(new InterviewQuestion("q-" + idx, "BEHAVIORAL", node.asText(), "Use STAR method (Situation, Task, Action, Result)"));
-                idx++;
+            JsonNode behArray = root.has("behavioral") ? root.path("behavioral") : root.path("behavioralQuestions");
+            if (behArray.isArray()) {
+                for (JsonNode node : behArray) {
+                    String qText = extractQuestionText(node);
+                    if (!qText.isBlank()) {
+                        behList.add(new InterviewQuestion("q-" + idx, "BEHAVIORAL", qText, "Use STAR method (Situation, Task, Action, Result)"));
+                        idx++;
+                    }
+                }
+            }
+            if (behList.isEmpty()) {
+                behList.add(new InterviewQuestion("q-" + idx, "BEHAVIORAL",
+                        "Tell me about a challenging technical decision you had to make and how you handled disagreement within your team.",
+                        "Use STAR method (Situation, Task, Action, Result)"));
             }
             pool.setBehavioralQuestions(behList);
 
@@ -105,67 +176,143 @@ public class InterviewCoachService {
         }
     }
 
+    private String extractQuestionText(JsonNode node) {
+        if (node == null || node.isMissingNode() || node.isNull()) {
+            return "";
+        }
+        if (node.isTextual()) {
+            return node.asText().trim();
+        }
+        if (node.isObject()) {
+            if (node.hasNonNull("question")) return node.path("question").asText().trim();
+            if (node.hasNonNull("questionText")) return node.path("questionText").asText().trim();
+            if (node.hasNonNull("text")) return node.path("text").asText().trim();
+        }
+        return "";
+    }
+
     private QuestionPool getCuratedLocalPool(CandidateProfile profile) {
         QuestionPool pool = new QuestionPool();
-        String role = profile.getTargetRole();
+        String role = profile.getTargetRole() != null ? profile.getTargetRole() : "Software Engineer";
+        String name = profile.getFullName() != null && !profile.getFullName().isBlank() ? profile.getFullName() : "Candidate";
+        Random rng = new Random();
 
-        pool.setWarmupQuestion(new InterviewQuestion(
-                "q-warmup",
-                "WARMUP",
-                "Hello " + profile.getFullName() + "! Welcome to your interview. Can you walk me through your background and the core technical stack you've worked with?",
-                "Highlight key projects, preferred programming languages, and recent achievements."
-        ));
+        // 1. Dynamic Warmups
+        List<String> warmupOptions = List.of(
+            "Hello " + name + "! Welcome to your interview today. To kick off, could you introduce yourself, highlighting the core technical stack you've worked with and a proud milestone in your career?",
+            "Hi " + name + ", glad to connect with you. Walk me through your engineering journey, the technologies you're most confident in as a " + role + ", and what kind of systems you enjoy building.",
+            "Welcome " + name + "! Can you give a quick 2-minute overview of your background, your key technical projects, and what you've specialized in?",
+            "Good day " + name + "! Let's start with a brief introduction about yourself and the technical accomplishments you're most excited about on your resume."
+        );
+        String chosenWarmup = warmupOptions.get(rng.nextInt(warmupOptions.size()));
+        pool.setWarmupQuestion(new InterviewQuestion("q-warmup", "WARMUP", chosenWarmup, "Highlight key projects, preferred programming languages, and recent achievements."));
 
-        List<InterviewQuestion> techList = new ArrayList<>();
-        if (role.toLowerCase().contains("java") || role.toLowerCase().contains("backend")) {
-            techList.add(new InterviewQuestion(
-                    "q-tech-1",
-                    "TECHNICAL",
-                    "Can you explain the internal working of Java Memory Model (Heap vs Stack, Garbage Collection algorithms like G1 / ZGC)?",
-                    "Discuss object allocation, generational hypothesis, and memory leak mitigation."
+        // Extract candidate project name
+        String primaryProject = "your core engineering project";
+        if (profile.getExtractedProjects() != null && !profile.getExtractedProjects().isEmpty()) {
+            primaryProject = profile.getExtractedProjects().get(0);
+        } else if (profile.getProjects() != null && !profile.getProjects().isEmpty()) {
+            Object pName = profile.getProjects().get(0).get("name");
+            if (pName != null && !pName.toString().isBlank()) {
+                primaryProject = pName.toString();
+            }
+        }
+
+        // 2. Dynamic Technical Questions
+        List<InterviewQuestion> allTech = new ArrayList<>();
+        boolean isJavaOrBackend = role.toLowerCase().contains("java") || role.toLowerCase().contains("backend")
+                || (profile.getExtractedSkills() != null && profile.getExtractedSkills().stream().anyMatch(s -> s.toLowerCase().contains("java") || s.toLowerCase().contains("spring")));
+
+        if (isJavaOrBackend) {
+            allTech.add(new InterviewQuestion(
+                "q-tech-jvm", "TECHNICAL",
+                "Can you explain the internal working of the Java Memory Model (Heap vs Stack, Garbage Collection algorithms like G1 or ZGC), and how you troubleshoot a memory leak or OutOfMemoryError in production?",
+                "Discuss object allocation, generational hypothesis, heap dumps, and memory leak mitigation."
             ));
-            techList.add(new InterviewQuestion(
-                    "q-tech-2",
-                    "TECHNICAL",
-                    "How do you design a high-throughput RESTful service in Spring Boot that handles database contention and spikes under heavy load?",
-                    "Touch upon connection pooling (HikariCP), caching with Redis, and asynchronous processing."
+            allTech.add(new InterviewQuestion(
+                "q-tech-throughput", "TECHNICAL",
+                "How do you design a high-throughput RESTful service in Spring Boot that handles database connection contention and sudden traffic spikes under heavy load?",
+                "Touch upon connection pooling (HikariCP), caching with Redis, virtual threads or asynchronous processing."
             ));
-            techList.add(new InterviewQuestion(
-                    "q-tech-3",
-                    "TECHNICAL",
-                    "Explain the difference between Optimistic and Pessimistic locking in database transactions, and how you implement it in Hibernate/JPA.",
-                    "Mention @Version annotation, lock modes, and trade-offs in high concurrency."
+            allTech.add(new InterviewQuestion(
+                "q-tech-locking", "TECHNICAL",
+                "Explain the difference between Optimistic and Pessimistic locking in database transactions, and how you implement them in Hibernate/JPA to prevent race conditions.",
+                "Mention @Version annotation, lock modes, and trade-offs in high concurrency."
+            ));
+            allTech.add(new InterviewQuestion(
+                "q-tech-kafka", "TECHNICAL",
+                "When implementing an event-driven architecture with Kafka or RabbitMQ, how do you guarantee idempotent message processing and handle poison pills or dead-letter queues?",
+                "Discuss idempotency keys, consumer offset commits, retry topics, and transaction boundaries."
+            ));
+            allTech.add(new InterviewQuestion(
+                "q-tech-microservices", "TECHNICAL",
+                "How do you handle distributed transactions across microservices when relational ACID transactions cannot span multiple databases?",
+                "Discuss the Saga pattern (orchestration vs choreography), two-phase commit drawbacks, and compensating transactions."
+            ));
+            allTech.add(new InterviewQuestion(
+                "q-tech-caching", "TECHNICAL",
+                "What caching patterns (Cache-Aside, Write-Through, Write-Behind) have you used with Redis, and how do you protect against Cache Stampede and Cache Penetration?",
+                "Explain Redis data types, TTL strategies, bloom filters, and mutex locking for stale caches."
             ));
         } else {
-            techList.add(new InterviewQuestion(
-                    "q-tech-1",
-                    "TECHNICAL",
-                    "How does client-server communication differ when using WebSockets versus standard HTTP/2 REST polling?",
-                    "Discuss latency, connection handshakes, and duplex data streams."
+            allTech.add(new InterviewQuestion(
+                "q-tech-realtime", "TECHNICAL",
+                "How does real-time communication differ when choosing between WebSockets, Server-Sent Events (SSE), and HTTP long-polling? Which would you pick for a live dashboard?",
+                "Discuss connection handshakes, bidirectional vs unidirectional flow, firewall traversal, and reconnection strategies."
             ));
-            techList.add(new InterviewQuestion(
-                    "q-tech-2",
-                    "TECHNICAL",
-                    "Walk me through how you optimize page load performance and Core Web Vitals (LCP, INP, CLS) in a modern web application.",
-                    "Mention bundle chunking, asset caching, lazy loading, and critical CSS."
+            allTech.add(new InterviewQuestion(
+                "q-tech-perf", "TECHNICAL",
+                "Walk me through how you optimize page load performance and Core Web Vitals (LCP, INP, CLS) in a modern frontend application.",
+                "Mention bundle code-splitting, tree-shaking, asset compression, lazy rendering, and critical CSS."
             ));
-            techList.add(new InterviewQuestion(
-                    "q-tech-3",
-                    "TECHNICAL",
-                    "How would you architect a secure user authentication workflow using JWTs and Refresh Tokens?",
-                    "Cover token expiration, HttpOnly secure cookies, and rotation strategies."
+            allTech.add(new InterviewQuestion(
+                "q-tech-auth", "TECHNICAL",
+                "How would you architect a secure user authentication and authorization workflow using JWTs and Refresh Tokens in a modern single-page app?",
+                "Cover short-lived access tokens, HttpOnly secure cookies, refresh token rotation, and XSS/CSRF mitigations."
+            ));
+            allTech.add(new InterviewQuestion(
+                "q-tech-state", "TECHNICAL",
+                "How do you evaluate state management solutions (Context API vs Redux/Zustand vs Server State like TanStack Query) when an application scales in complexity?",
+                "Discuss render churn, caching, re-fetching policies, and decoupling client state from server data."
+            ));
+            allTech.add(new InterviewQuestion(
+                "q-tech-api", "TECHNICAL",
+                "When building a RESTful or GraphQL API, how do you implement rate limiting, circuit breaking, and graceful degradation during downstream third-party service failures?",
+                "Discuss token bucket / leaky bucket algorithms, resilience patterns, and fallback responses."
             ));
         }
-        pool.setTechnicalQuestions(techList);
 
-        List<InterviewQuestion> behList = new ArrayList<>();
-        behList.add(new InterviewQuestion(
-                "q-beh-1",
-                "BEHAVIORAL",
-                "Describe a situation where a production critical bug appeared right before a release deadline. How did you triage and resolve it?",
-                "Structure using STAR methodology: Situation, Task, Action, and measurable Result."
+        // Add a project-specific probe question
+        allTech.add(new InterviewQuestion(
+            "q-tech-project", "TECHNICAL",
+            "Looking at " + primaryProject + " on your resume, can you walk me through the end-to-end architecture, the hardest technical roadblock you encountered, and how you resolved it?",
+            "Focus on system design choices, bottlenecks faced, debugging approach, and architectural trade-offs."
         ));
-        pool.setBehavioralQuestions(behList);
+
+        // Shuffle so every run has different questions
+        Collections.shuffle(allTech, rng);
+        List<InterviewQuestion> chosenTech = allTech.subList(0, Math.min(3, allTech.size()));
+        pool.setTechnicalQuestions(chosenTech);
+
+        // 3. Dynamic Behavioral Questions
+        List<InterviewQuestion> behOptions = new ArrayList<>();
+        behOptions.add(new InterviewQuestion(
+            "q-beh-bug", "BEHAVIORAL",
+            "Describe a situation where a production-critical bug or outage appeared close to a deadline. How did you triage, communicate, and resolve it?",
+            "Structure using STAR methodology: Situation, Task, Action, and measurable Result."
+        ));
+        behOptions.add(new InterviewQuestion(
+            "q-beh-disagree", "BEHAVIORAL",
+            "Tell me about a time you strongly disagreed with a team member or tech lead regarding an architectural decision. How did you navigate the conversation and reach consensus?",
+            "Focus on objective data, constructive communication, team alignment, and final outcomes."
+        ));
+        behOptions.add(new InterviewQuestion(
+            "q-beh-deadline", "BEHAVIORAL",
+            "Can you share an experience where project requirements changed drastically mid-sprint or you were faced with a tight deadline? How did you adapt your priorities?",
+            "Explain requirement scoping, trade-off communication, stakeholder management, and timely delivery."
+        ));
+        Collections.shuffle(behOptions, rng);
+        pool.setBehavioralQuestions(behOptions.subList(0, 1));
 
         return pool;
     }

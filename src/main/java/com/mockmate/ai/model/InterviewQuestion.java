@@ -1,12 +1,18 @@
 package com.mockmate.ai.model;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.Serializable;
 
 public class InterviewQuestion implements Serializable {
     private String id;
     private String category; // WARMUP, TECHNICAL, BEHAVIORAL, FOLLOW_UP
-    private String questionText;
-    private String contextHint;
+
+    @JsonAlias({"question", "questionText", "text"})
+    @JsonProperty("questionText")
+    private String questionText = "";
+
+    private String contextHint = "";
     private String candidateAnswer = "";
     private int score = 0; // 0 to 100
     private String feedback = "";
@@ -17,8 +23,8 @@ public class InterviewQuestion implements Serializable {
     public InterviewQuestion(String id, String category, String questionText, String contextHint) {
         this.id = id;
         this.category = category;
-        this.questionText = questionText;
-        this.contextHint = contextHint;
+        this.questionText = questionText != null ? questionText : "";
+        this.contextHint = contextHint != null ? contextHint : "";
     }
 
     public String getId() {
@@ -37,12 +43,26 @@ public class InterviewQuestion implements Serializable {
         this.category = category;
     }
 
+    @JsonProperty("question")
+    public String getQuestion() {
+        return questionText;
+    }
+
+    @JsonProperty("question")
+    public void setQuestion(String question) {
+        if (question != null && !question.isBlank()) {
+            this.questionText = question;
+        }
+    }
+
     public String getQuestionText() {
         return questionText;
     }
 
     public void setQuestionText(String questionText) {
-        this.questionText = questionText;
+        if (questionText != null) {
+            this.questionText = questionText;
+        }
     }
 
     public String getContextHint() {

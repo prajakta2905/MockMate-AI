@@ -138,7 +138,10 @@ class SpeechService {
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = !isMobile;
-      recognition.lang = 'en-US';
+
+      // Smart language support: Use en-IN for Indian accents / Hinglish, or browser English
+      const sysLang = (typeof navigator !== 'undefined' && navigator.language) || '';
+      recognition.lang = sysLang.toLowerCase().includes('in') ? 'en-IN' : (sysLang.startsWith('en') ? sysLang : 'en-IN');
       recognition.maxAlternatives = 1;
 
       recognition.onstart = () => {
@@ -150,11 +153,6 @@ class SpeechService {
       };
 
       recognition.onresult = (event) => {
-        // Discard recognized audio if interviewer is speaking
-        if (this.isSpeaking) {
-          return;
-        }
-
         let interimTranscript = '';
         let finalTranscript = '';
 
@@ -167,7 +165,14 @@ class SpeechService {
           }
         }
 
-        if (this.onResultCallback && !this.isSpeaking) {
+        const hasCandidateSpeech = (finalTranscript.trim().length > 1) || (interimTranscript.trim().length > 2);
+
+        // If candidate speaks while interviewer TTS is speaking, automatically interrupt the AI
+        if (this.isSpeaking && hasCandidateSpeech) {
+          this.stopSpeaking();
+        }
+
+        if (this.onResultCallback) {
           this.onResultCallback({
             final: finalTranscript.trim(),
             interim: interimTranscript.trim()
@@ -180,40 +185,46 @@ class SpeechService {
         if (error === 'no-speech' || error === 'aborted') {
           return;
         }
+
         if (error === 'not-allowed' || error === 'service-not-allowed') {
-          this.permissionDenied = true;
-          this.shouldBeListening = false;
+          console.warn('Microphone permission check notice:', error);
           this.isListening = false;
           if (this.onListeningChangeCallback) {
             this.onListeningChangeCallback(false);
           }
           if (this.onErrorCallback) {
-            this.onErrorCallback('Microphone permission was denied. Please allow microphone access in your browser settings.');
+            this.onErrorCallback('Microphone permission was not granted. Please allow microphone access in your browser bar.');
+          }
+          return;
+        }
+
+        if (error === 'audio-capture') {
+          console.warn('Microphone audio capture busy, retrying in 400ms...');
+          if (this.shouldBeListening && !this.isSpeaking) {
+            clearTimeout(this.restartTimeout);
+            this.restartTimeout = setTimeout(() => this._restartRecognition(), 400);
           }
           return;
         }
 
         if (error === 'network') {
-          console.warn('Speech recognition network blip; will auto-reconnect...');
+          console.warn('Speech recognition network notice, auto-reconnecting...');
           return;
         }
 
         console.warn('SpeechRecognition event error:', error);
-        if (this.onErrorCallback) {
-          this.onErrorCallback(error);
-        }
       };
 
       recognition.onend = () => {
         this.isListening = false;
 
-        if (this.shouldBeListening && !this.isSpeaking && !this.permissionDenied) {
+        if (this.shouldBeListening && !this.isSpeaking) {
           clearTimeout(this.restartTimeout);
           this.restartTimeout = setTimeout(() => {
-            if (this.shouldBeListening && !this.isSpeaking && !this.permissionDenied) {
+            if (this.shouldBeListening && !this.isSpeaking) {
               this._restartRecognition();
             }
-          }, 150);
+          }, 200);
         } else {
           if (this.onListeningChangeCallback) {
             this.onListeningChangeCallback(false);
@@ -233,24 +244,44 @@ class SpeechService {
   }
 
   _restartRecognition() {
-    if (!this.shouldBeListening || this.isSpeaking || this.permissionDenied) return;
+    if (!this.shouldBeListening || this.isSpeaking) return;
+    clearTimeout(this.restartTimeout);
+
     try {
-      const rec = this._createRecognition();
-      if (rec) {
-        rec.start();
-        this.isListening = true;
-        if (this.onListeningChangeCallback) {
-          this.onListeningChangeCallback(true);
+      if (!this.recognition) {
+        this.recognition = this._createRecognition();
+      }
+      if (this.recognition) {
+        try {
+          this.recognition.start();
+          this.isListening = true;
+          this.permissionDenied = false;
+          if (this.onListeningChangeCallback) {
+            this.onListeningChangeCallback(true);
+          }
+        } catch (startErr) {
+          if (startErr.name === 'InvalidStateError') {
+            // Already active or transitioning
+            return;
+          }
+          // Re-create and retry
+          this.recognition = this._createRecognition();
+          if (this.recognition) {
+            this.recognition.start();
+            this.isListening = true;
+            this.permissionDenied = false;
+            if (this.onListeningChangeCallback) {
+              this.onListeningChangeCallback(true);
+            }
+          }
         }
       }
     } catch (err) {
       if (err.name !== 'InvalidStateError') {
-        console.warn('Recognition start exception:', err);
+        console.warn('Recognition restart notice:', err);
       }
-      // Retry after small delay
-      if (this.shouldBeListening && !this.isSpeaking && !this.permissionDenied) {
-        clearTimeout(this.restartTimeout);
-        this.restartTimeout = setTimeout(() => this._restartRecognition(), 1000);
+      if (this.shouldBeListening && !this.isSpeaking) {
+        this.restartTimeout = setTimeout(() => this._restartRecognition(), 500);
       }
     }
   }
@@ -459,9 +490,8 @@ class SpeechService {
       utterance.onerror = (err) => {
         console.warn('Speech synthesis chunk error:', err?.error || err);
         if (err?.error === 'interrupted' || err?.error === 'canceled') {
-          // Intentionally stopped (e.g. user clicked mic)
-          finished = true;
-          this.isSpeaking = false;
+          // Intentionally stopped or canceled - cleanly finish speech and trigger onEnd
+          finishSpeech();
           return;
         }
         currentChunkIndex++;
@@ -629,6 +659,32 @@ class SpeechService {
       cancelAnimationFrame(this.volumeAnimationFrame);
       this.volumeAnimationFrame = null;
     }
+  }
+
+  /**
+   * Release media stream tracks to immediately free the hardware mic for SpeechRecognition
+   */
+  releaseMediaStream() {
+    this.stopVolumeCheck();
+    if (this.sourceNode) {
+      try {
+        this.sourceNode.disconnect();
+      } catch (_) {}
+      this.sourceNode = null;
+    }
+    if (this.mediaStream) {
+      try {
+        this.mediaStream.getTracks().forEach(track => track.stop());
+      } catch (_) {}
+      this.mediaStream = null;
+    }
+    if (this.audioContext && this.audioContext.state !== 'closed') {
+      try {
+        this.audioContext.close().catch(() => {});
+      } catch (_) {}
+      this.audioContext = null;
+    }
+    this.analyser = null;
   }
 
   /**

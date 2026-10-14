@@ -177,8 +177,8 @@ public class InterviewApiController {
      */
     @PostMapping("/interview/evaluate-answer")
     public ResponseEntity<Map<String, Object>> evaluateAnswer(@RequestBody Map<String, String> payload) {
-        String question = payload.getOrDefault("question", "");
-        String answer = payload.getOrDefault("answer", "");
+        String question = payload.getOrDefault("question", payload.getOrDefault("questionText", payload.getOrDefault("text", "")));
+        String answer = payload.getOrDefault("answer", payload.getOrDefault("candidateAnswer", ""));
         String role = payload.getOrDefault("role", "Software Engineer");
 
         Map<String, Object> result = new LinkedHashMap<>();

@@ -24,7 +24,7 @@ import AudioVisualizer from './AudioVisualizer';
 import Timer from './Timer';
 import TranscriptDrawer from './TranscriptDrawer';
 import { speechService } from '../services/speechService';
-import { evaluateAnswerAndGenerateNextQuestion } from '../services/grok';
+import { evaluateAnswerAndGenerateNextQuestion, isRepeatOrPreviousCommand, isUnclearOrGibberishAnswer } from '../services/grok';
 import { cleanCandidateName, getCandidateFirstName } from '../services/gemini';
 
 export default function InterviewScreen({
@@ -34,8 +34,28 @@ export default function InterviewScreen({
   onInterviewFinished,
   onCancel
 }) {
+  const getQuestionText = (q) => {
+    if (!q) return '';
+    if (typeof q === 'string') return q.trim();
+    return (q.question || q.questionText || q.text || '').trim();
+  };
+
+  const candidateName = cleanCandidateName(resume?.name);
+  const firstName = getCandidateFirstName(candidateName);
+
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [currentQuestion, setCurrentQuestion] = useState(questionPool[0] || null);
+  const [currentQuestion, setCurrentQuestion] = useState(() => {
+    if (questionPool && questionPool.length > 0) {
+      return questionPool[0];
+    }
+    const defaultText = `Hello ${firstName || 'there'}, welcome to your interview! Could you please introduce yourself, your core engineering background, and key technical stack?`;
+    return {
+      id: 'q1-init',
+      category: 'Introduction',
+      question: defaultText,
+      questionText: defaultText
+    };
+  });
   const [isFollowUp, setIsFollowUp] = useState(false);
   const [followUpRationale, setFollowUpRationale] = useState('');
 
@@ -63,8 +83,15 @@ export default function InterviewScreen({
 
   const isMountedRef = useRef(true);
   const interviewerStatusRef = useRef('speaking');
-  const candidateName = cleanCandidateName(resume?.name);
-  const firstName = getCandidateFirstName(candidateName);
+  const currentQuestionIndexRef = useRef(0);
+  currentQuestionIndexRef.current = currentQuestionIndex;
+  const isFollowUpRef = useRef(false);
+  isFollowUpRef.current = isFollowUp;
+  const currentQuestionRef = useRef(currentQuestion);
+  currentQuestionRef.current = currentQuestion;
+  const handlePreviousQuestionRef = useRef(null);
+  const isClarifyPromptRef = useRef(false);
+  const unclearQuestionRef = useRef(null);
 
   const updateInterviewerStatus = (status) => {
     interviewerStatusRef.current = status;
@@ -82,40 +109,62 @@ export default function InterviewScreen({
     // Speak first question
     const initialSpeakTimer = setTimeout(() => {
       if (isMountedRef.current && currentQuestion) {
-        speakQuestion(currentQuestion.question);
+        const text = getQuestionText(currentQuestion);
+        if (text) {
+          speakQuestion(text);
+        }
       }
-    }, 120);
+    }, 150);
 
-    // Setup live audio analyser for visualizer
-    speechService.setupAudioAnalyser((vol) => {
+    // Volume simulation based on speech recognition activity
+    const volInterval = setInterval(() => {
       if (isMountedRef.current) {
-        setMicVolume(vol);
+        if (isMicListening) {
+          setMicVolume((prev) => (prev > 15 ? 12 : Math.floor(Math.random() * 12 + 6)));
+        } else {
+          setMicVolume(0);
+        }
       }
-    });
+    }, 300);
 
     // Initialize speech recognition with robust callbacks
     speechService.initRecognition(
       (result) => {
         if (!isMountedRef.current) return;
+        if (interviewerStatusRef.current === 'thinking') return;
 
-        // Strictly ignore incoming audio if AI is speaking or thinking
-        if (
-          interviewerStatusRef.current === 'speaking' ||
-          interviewerStatusRef.current === 'thinking' ||
-          speechService.isSpeaking
-        ) {
-          return;
+        // Auto-interrupt: If candidate starts speaking while AI is speaking, interrupt the AI
+        if (interviewerStatusRef.current === 'speaking' || speechService.isSpeaking) {
+          if ((result.final && result.final.trim().length > 0) || (result.interim && result.interim.trim().length > 1)) {
+            speechService.stopSpeaking();
+            updateInterviewerStatus('listening');
+          }
         }
 
         if (result.final) {
+          const incoming = result.final.trim();
           setCandidateAnswerText((prev) => {
             const trimmedPrev = (prev || '').trim();
-            const incoming = result.final.trim();
-            return trimmedPrev ? `${trimmedPrev} ${incoming}` : incoming;
+            const combined = trimmedPrev ? `${trimmedPrev} ${incoming}` : incoming;
+            if (isRepeatOrPreviousCommand(combined) || isRepeatOrPreviousCommand(incoming)) {
+              clearTimeout(window.__mockmateVoiceCmdTimer);
+              window.__mockmateVoiceCmdTimer = setTimeout(() => {
+                if (isMountedRef.current && interviewerStatusRef.current !== 'thinking') {
+                  if (handlePreviousQuestionRef.current) {
+                    handlePreviousQuestionRef.current();
+                  }
+                }
+              }, 400);
+            }
+            return combined;
           });
           setInterimSpeech('');
+          setMicVolume(Math.floor(Math.random() * 25 + 65));
         } else if (result.interim !== undefined) {
           setInterimSpeech(result.interim.trim());
+          if (result.interim.trim().length > 0) {
+            setMicVolume(Math.floor(Math.random() * 25 + 60));
+          }
         }
       },
       () => {
@@ -124,8 +173,8 @@ export default function InterviewScreen({
       (err) => {
         if (!isMountedRef.current) return;
         console.warn('Speech recognition notice:', err);
-        if (typeof err === 'string' && err.includes('denied')) {
-          setMicError('Microphone permission is blocked. Please allow mic access in your browser bar.');
+        if (typeof err === 'string' && err.includes('not granted')) {
+          setMicError('Microphone permission needed. Please allow mic access in your browser bar.');
         }
       },
       (isListeningNow) => {
@@ -137,13 +186,17 @@ export default function InterviewScreen({
     return () => {
       isMountedRef.current = false;
       clearTimeout(initialSpeakTimer);
+      clearInterval(volInterval);
       speechService.stopSpeaking();
       speechService.stopListening();
     };
   }, []);
 
   // Speak question function
-  const speakQuestion = (text) => {
+  const speakQuestion = (rawInput) => {
+    const text = typeof rawInput === 'string' ? rawInput.trim() : getQuestionText(rawInput);
+    if (!text) return;
+
     updateInterviewerStatus('speaking');
     setCandidateAnswerText('');
     setInterimSpeech('');
@@ -160,15 +213,29 @@ export default function InterviewScreen({
       }
     ]);
 
+    // Safety watchdog: ensure mic starts listening even if browser speech synthesis stalls
+    const words = text.split(/\s+/).length;
+    const maxSpeechDurationMs = Math.min(14000, Math.max(3500, (words / 1.8) * 1000 + 2000));
+    clearTimeout(window.__mockmateSpeechWatchdog);
+    window.__mockmateSpeechWatchdog = setTimeout(() => {
+      if (isMountedRef.current && interviewerStatusRef.current === 'speaking') {
+        speechService.stopSpeaking();
+        updateInterviewerStatus('listening');
+        if (setup?.voiceMode !== 'text-to-voice') {
+          speechService.startListening();
+        }
+      }
+    }, maxSpeechDurationMs);
+
     speechService.speak(
       text,
       () => {
         if (isMountedRef.current) {
           updateInterviewerStatus('speaking');
-          speechService.stopListening();
         }
       },
       () => {
+        clearTimeout(window.__mockmateSpeechWatchdog);
         if (isMountedRef.current) {
           if (interviewerStatusRef.current !== 'thinking' && !isPaused) {
             updateInterviewerStatus('listening');
@@ -183,13 +250,12 @@ export default function InterviewScreen({
     );
   };
 
-  // Toggle Microphone: Allows candidate to interrupt AI or mute/unmute mic anytime
+  // Toggle Microphone: Allows candidate to start/stop mic anytime or interrupt AI voice
   const handleToggleMic = () => {
-    if (isMicListening || interviewerStatus === 'listening') {
+    if (isMicListening) {
       speechService.stopListening();
       updateInterviewerStatus('idle');
     } else {
-      // Immediately stop AI voice if it was speaking and open candidate mic
       speechService.stopSpeaking();
       updateInterviewerStatus('listening');
       speechService.startListening();
@@ -198,11 +264,23 @@ export default function InterviewScreen({
 
   // Submit Answer & Evaluate Follow-Up
   const handleSubmitAnswer = async () => {
+    clearTimeout(window.__mockmateVoiceCmdTimer);
     const combinedAnswer = `${candidateAnswerText} ${interimSpeech}`.trim();
     if (!combinedAnswer) return;
 
     speechService.stopListening();
     speechService.stopSpeaking();
+
+    // Direct voice command interception for repeat or return to previous question
+    if (isRepeatOrPreviousCommand(combinedAnswer)) {
+      if (handlePreviousQuestionRef.current) {
+        handlePreviousQuestionRef.current();
+      } else {
+        handlePreviousQuestion();
+      }
+      return;
+    }
+
     updateInterviewerStatus('thinking');
 
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -227,47 +305,81 @@ export default function InterviewScreen({
     }
 
     try {
+      // Determine what question candidate was answering
+      const isCurrentlyClarifying = Boolean(
+        isClarifyPromptRef.current ||
+        currentQuestion?.isClarifyPrompt ||
+        currentQuestion?.question?.toLowerCase().includes("didn't quite catch")
+      );
+      const activePromptQ = (isCurrentlyClarifying && unclearQuestionRef.current)
+        ? unclearQuestionRef.current
+        : currentQuestion;
+      const currentQText = getQuestionText(activePromptQ);
+
       const evaluation = await evaluateAnswerAndGenerateNextQuestion({
-        currentQuestion: currentQuestion.question,
+        currentQuestion: currentQText,
         candidateAnswer: combinedAnswer,
         conversationHistory: updatedTranscript,
         questionPool,
         currentQuestionIndex,
         targetRole: resume.targetRole,
         interviewType: setup.type,
-        resume
+        resume,
+        isFollowUp: isFollowUp
       });
 
       if (!isMountedRef.current) return;
 
-      if (evaluation.action === 'previous') {
-        setIsFollowUp(false);
-        setFollowUpRationale('');
-        const prevIdx = Math.max(0, currentQuestionIndex - 1);
-        setCurrentQuestionIndex(prevIdx);
-        const prevQ = questionPool[prevIdx];
-        setCurrentQuestion(prevQ);
-        speakQuestion(prevQ.question);
+      if (evaluation.action === 'previous' || evaluation.action === 'repeat') {
+        handlePreviousQuestion();
         return;
       }
 
-      if (evaluation.action === 'repeat') {
-        speakQuestion(currentQuestion.question);
+      // Check if AI did not understand the answer -> Enter "I didn't quite catch that" screen
+      const isClarifyAction = Boolean(
+        evaluation.action === 'clarify' ||
+        evaluation.nextQuestion?.toLowerCase().includes("didn't quite catch") ||
+        evaluation.nextQuestion?.toLowerCase().includes("catch that")
+      );
+
+      if (isClarifyAction) {
+        unclearQuestionRef.current = activePromptQ;
+        isClarifyPromptRef.current = true;
+        setIsFollowUp(true);
+        setFollowUpRationale(evaluation.rationale || "Candidate answer was unclear — requesting clarification");
+        const clarifyQ = {
+          id: `clarify-${Date.now()}`,
+          category: 'Clarification',
+          question: evaluation.nextQuestion || "I didn't quite catch that. Could you please repeat or clarify your answer?",
+          questionText: evaluation.nextQuestion || "I didn't quite catch that. Could you please repeat or clarify your answer?",
+          isFollowUp: true,
+          isClarifyPrompt: true
+        };
+        setCurrentQuestion(clarifyQ);
+        speakQuestion(getQuestionText(clarifyQ));
         return;
       }
 
-      if (evaluation.isFollowUp) {
+      // Candidate answered successfully!
+      isClarifyPromptRef.current = false;
+      unclearQuestionRef.current = null;
+
+      const isFollowUpQuestion = Boolean(evaluation.isFollowUp || evaluation.action === 'follow_up');
+      const followUpText = evaluation.nextQuestion || evaluation.question;
+
+      if (isFollowUpQuestion && followUpText) {
         setIsFollowUp(true);
         setFollowUpRationale(evaluation.rationale || 'Probing deeper into technical rationale');
         setFollowUpsCount((prev) => prev + 1);
         const fuQuestion = {
           id: `fu-${Date.now()}`,
           category: 'Dynamic Follow-Up',
-          question: evaluation.nextQuestion,
+          question: followUpText,
+          questionText: followUpText,
           isFollowUp: true
         };
         setCurrentQuestion(fuQuestion);
-        speakQuestion(evaluation.nextQuestion);
+        speakQuestion(followUpText);
       } else {
         setIsFollowUp(false);
         setFollowUpRationale('');
@@ -278,11 +390,12 @@ export default function InterviewScreen({
         const nextQ = questionPool[nextIdx] || {
           id: `end-q`,
           category: 'Summary',
-          question: `Thank you ${firstName}. We have covered the primary architecture topics. Do you have any final project achievements you would like to highlight?`
+          question: `Thank you ${firstName}. We have covered the primary architecture topics. Do you have any final project achievements you would like to highlight?`,
+          questionText: `Thank you ${firstName}. We have covered the primary architecture topics. Do you have any final project achievements you would like to highlight?`
         };
 
         setCurrentQuestion(nextQ);
-        speakQuestion(nextQ.question);
+        speakQuestion(getQuestionText(nextQ));
       }
     } catch (err) {
       console.error('Error evaluating answer:', err);
@@ -291,25 +404,56 @@ export default function InterviewScreen({
       const nextQ = questionPool[nextIdx] || {
         id: `end-q`,
         category: 'Summary',
-        question: `Thank you ${firstName}. We have covered the primary architecture topics. Do you have any final project achievements you would like to highlight?`
+        question: `Thank you ${firstName}. We have covered the primary architecture topics. Do you have any final project achievements you would like to highlight?`,
+        questionText: `Thank you ${firstName}. We have covered the primary architecture topics. Do you have any final project achievements you would like to highlight?`
       };
       setCurrentQuestion(nextQ);
-      speakQuestion(nextQ.question);
+      speakQuestion(getQuestionText(nextQ));
     }
   };
 
   const handleRepeatQuestion = () => {
-    if (currentQuestion) {
-      speakQuestion(currentQuestion.question);
+    clearTimeout(window.__mockmateVoiceCmdTimer);
+    speechService.stopSpeaking();
+    speechService.stopListening();
+    setCandidateAnswerText('');
+    setInterimSpeech('');
+    const idx = currentQuestionIndexRef.current;
+    const curQ = currentQuestionRef.current || currentQuestion;
+
+    const isClarifying = Boolean(
+      isClarifyPromptRef.current ||
+      curQ?.isClarifyPrompt ||
+      curQ?.question?.toLowerCase().includes("didn't quite catch")
+    );
+
+    // If on "I didn't catch that" screen, Repeat repeats the original question that was not understood
+    if (isClarifying) {
+      isClarifyPromptRef.current = false;
+      setIsFollowUp(false);
+      setFollowUpRationale('');
+      const targetQ = unclearQuestionRef.current || questionPool[idx] || questionPool[0];
+      if (targetQ) {
+        setCurrentQuestion(targetQ);
+        speakQuestion(getQuestionText(targetQ));
+      }
+      return;
+    }
+
+    if (curQ) {
+      speakQuestion(getQuestionText(curQ));
     }
   };
 
   const handleSkipQuestion = () => {
+    clearTimeout(window.__mockmateVoiceCmdTimer);
     speechService.stopSpeaking();
     speechService.stopListening();
     
     setCandidateAnswerText('');
     setInterimSpeech('');
+    isClarifyPromptRef.current = false;
+    unclearQuestionRef.current = null;
 
     if (currentQuestion?.id === 'end-q') {
       updateInterviewerStatus('idle');
@@ -323,28 +467,83 @@ export default function InterviewScreen({
     const nextQ = questionPool[nextIdx] || {
       id: `end-q`,
       category: 'Summary',
-      question: `Thank you ${firstName}. We have covered the primary architecture topics. Do you have any final project achievements you would like to highlight?`
+      question: `Thank you ${firstName}. We have covered the primary architecture topics. Do you have any final project achievements you would like to highlight?`,
+      questionText: `Thank you ${firstName}. We have covered the primary architecture topics. Do you have any final project achievements you would like to highlight?`
     };
     setCurrentQuestion(nextQ);
-    speakQuestion(nextQ.question);
+    speakQuestion(getQuestionText(nextQ));
   };
 
   const handlePreviousQuestion = () => {
-    if (currentQuestionIndex > 0) {
-      speechService.stopSpeaking();
-      speechService.stopListening();
-      
-      setCandidateAnswerText('');
-      setInterimSpeech('');
+    clearTimeout(window.__mockmateVoiceCmdTimer);
+    speechService.stopSpeaking();
+    speechService.stopListening();
+    
+    setCandidateAnswerText('');
+    setInterimSpeech('');
 
-      const prevIdx = currentQuestionIndex - 1;
-      setCurrentQuestionIndex(prevIdx);
+    const idx = currentQuestionIndexRef.current;
+    const followUp = isFollowUpRef.current;
+    const curQ = currentQuestionRef.current;
+
+    // 1. If currently on the "I didn't quite catch that..." clarification screen:
+    // User asked "repeat the question" -> go back to the original question whose answer AI did not understand!
+    const isClarifying = Boolean(
+      isClarifyPromptRef.current ||
+      curQ?.isClarifyPrompt ||
+      curQ?.question?.toLowerCase().includes("didn't quite catch")
+    );
+
+    if (isClarifying) {
+      isClarifyPromptRef.current = false;
       setIsFollowUp(false);
-      const prevQ = questionPool[prevIdx];
+      setFollowUpRationale('');
+      const targetQ = unclearQuestionRef.current || questionPool[idx] || questionPool[0];
+      if (targetQ) {
+        setCurrentQuestion(targetQ);
+        speakQuestion(getQuestionText(targetQ));
+      }
+      return;
+    }
+
+    // 2. If currently on summary end question, return to last question in pool
+    if (curQ?.id === 'end-q') {
+      const lastIdx = Math.max(0, questionPool.length - 1);
+      setCurrentQuestionIndex(lastIdx);
+      setIsFollowUp(false);
+      setFollowUpRationale('');
+      const targetQ = questionPool[lastIdx];
+      if (targetQ) {
+        setCurrentQuestion(targetQ);
+        speakQuestion(getQuestionText(targetQ));
+      }
+      return;
+    }
+
+    // 3. If candidate was on a follow-up, navigate back to the parent question of this turn
+    if (followUp) {
+      setIsFollowUp(false);
+      setFollowUpRationale('');
+      const targetQ = questionPool[idx] || questionPool[0];
+      if (targetQ) {
+        setCurrentQuestion(targetQ);
+        speakQuestion(getQuestionText(targetQ));
+      }
+      return;
+    }
+
+    // 4. Main question: navigate back to previous question (or replay question 0 if at beginning)
+    const prevIdx = Math.max(0, idx - 1);
+    setCurrentQuestionIndex(prevIdx);
+    setIsFollowUp(false);
+    setFollowUpRationale('');
+    const prevQ = questionPool[prevIdx] || questionPool[0];
+    if (prevQ) {
       setCurrentQuestion(prevQ);
-      speakQuestion(prevQ.question);
+      speakQuestion(getQuestionText(prevQ));
     }
   };
+  handlePreviousQuestionRef.current = handlePreviousQuestion;
 
   const handleTogglePause = () => {
     if (isPaused) {
@@ -476,7 +675,7 @@ export default function InterviewScreen({
             </div>
 
             <h3 className="text-base sm:text-lg font-bold text-gray-900 leading-snug pt-1">
-              "{currentQuestion?.question}"
+              "{getQuestionText(currentQuestion) || `Hello ${firstName || 'there'}, welcome to your interview! Can you please introduce yourself and your background?`}"
             </h3>
           </div>
 
@@ -545,6 +744,10 @@ export default function InterviewScreen({
                     : interimSpeech
                 }
                 onChange={(e) => {
+                  if (interviewerStatus === 'speaking') {
+                    speechService.stopSpeaking();
+                    updateInterviewerStatus('listening');
+                  }
                   setCandidateAnswerText(e.target.value);
                   setInterimSpeech('');
                 }}
@@ -554,10 +757,10 @@ export default function InterviewScreen({
                     handleSubmitAnswer();
                   }
                 }}
-                disabled={interviewerStatus === 'speaking' || interviewerStatus === 'thinking'}
+                disabled={interviewerStatus === 'thinking'}
                 placeholder={
                   interviewerStatus === 'speaking'
-                    ? `🎧 ${setup.persona?.name || 'Interviewer'} sawaal bol rahe hain... (Sawaal khatam hote hi mic automatically start ho jayega)`
+                    ? `🎧 ${setup.persona?.name || 'Interviewer'} sawaal bol rahe hain... (Boliye ya type karein to interrupt ho jayega)`
                     : interviewerStatus === 'thinking'
                     ? 'AI aapka answer evaluate kar raha hai...'
                     : isMicListening
@@ -566,8 +769,8 @@ export default function InterviewScreen({
                 }
                 rows={4}
                 className={`w-full h-full p-3 text-xs sm:text-sm border rounded-2xl outline-none transition-all resize-none ${
-                  interviewerStatus === 'speaking'
-                    ? 'bg-amber-50/40 border-amber-200/60 text-gray-500 cursor-not-allowed placeholder:text-amber-800/70'
+                  interviewerStatus === 'thinking'
+                    ? 'bg-purple-50/40 border-purple-200/60 text-gray-500 cursor-not-allowed'
                     : 'bg-gray-50/70 border-[#EEDD9E]/70 focus:bg-white focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37] text-gray-800'
                 }`}
               />
@@ -610,8 +813,18 @@ export default function InterviewScreen({
               </button>
 
               <button
+                onClick={handleRepeatQuestion}
+                disabled={interviewerStatus === 'thinking'}
+                className="px-3 py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-100 transition-colors disabled:opacity-40 cursor-pointer text-[11px] lg:text-xs font-semibold flex items-center justify-center gap-1"
+                title="Repeat Current Question"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span className="hidden lg:inline">Repeat</span>
+              </button>
+
+              <button
                 onClick={handlePreviousQuestion}
-                disabled={interviewerStatus === 'thinking' || currentQuestionIndex === 0}
+                disabled={interviewerStatus === 'thinking' || (currentQuestionIndex === 0 && !isFollowUp && currentQuestion?.id !== 'end-q')}
                 className="px-3 py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-100 transition-colors disabled:opacity-40 cursor-pointer text-[11px] lg:text-xs font-semibold flex items-center justify-center gap-1"
                 title="Previous Question"
               >

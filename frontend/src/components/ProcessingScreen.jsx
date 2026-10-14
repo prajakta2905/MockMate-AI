@@ -41,7 +41,30 @@ export default function ProcessingScreen({ interviewData, onReportReady }) {
 
     async function evaluate() {
       try {
-        // 1. Primary: Call Java Spring Boot REST Endpoint (/api/interview/report)
+        // 1. Primary: AI Report Generator (Groq / Gemini) tailored to transcript & candidate answers
+        let report = null;
+        try {
+          report = await generateFinalReportWithGemini(interviewData);
+        } catch (aiErr) {
+          console.warn('AI report generation fallback:', aiErr);
+        }
+
+        if (report && report.overallScore) {
+          // Asynchronously notify / persist into Spring Boot JPA backend
+          generateReportWithJavaBackend(
+            interviewData?.transcript || interviewData?.answers || [],
+            interviewData?.targetRole || interviewData?.role || 'Software Engineer'
+          ).catch(e => console.warn('Background JPA session persistence notice:', e));
+
+          if (isMounted) {
+            setTimeout(() => {
+              onReportReady(report);
+            }, 2000);
+          }
+          return;
+        }
+
+        // 2. Fallback: Java Spring Boot REST Endpoint (/api/interview/report)
         const javaRes = await generateReportWithJavaBackend(
           interviewData?.transcript || interviewData?.answers || [],
           interviewData?.targetRole || interviewData?.role || 'Software Engineer'
@@ -51,17 +74,14 @@ export default function ProcessingScreen({ interviewData, onReportReady }) {
           if (isMounted) {
             setTimeout(() => {
               onReportReady(javaRes.report);
-            }, 3000);
+            }, 2000);
           }
           return;
         }
 
-        // 2. Fallback: Browser report generator
-        const report = await generateFinalReportWithGemini(interviewData);
-        if (isMounted) {
-          setTimeout(() => {
-            onReportReady(report);
-          }, 3200);
+        // 3. Last-resort fallback
+        if (isMounted && report) {
+          onReportReady(report);
         }
       } catch (err) {
         console.error('Report evaluation failed:', err);

@@ -348,7 +348,7 @@ ${executiveSummary}`;
                           {idx + 1}
                         </span>
                         <span className={`font-semibold truncate transition-colors duration-300 ${isExpanded ? 'text-gray-900' : 'text-gray-700 group-hover:text-gray-900'}`}>
-                          {qa.question}
+                          {qa.question || qa.questionText || qa.text || 'Interview Question'}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 shrink-0 ml-3">
