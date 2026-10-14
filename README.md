@@ -7,8 +7,9 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Java-17-ED8B00?style=flat-square&logo=openjdk&logoColor=white" alt="Java 17" />
+  <img src="https://img.shields.io/badge/Java-21_LTS-ED8B00?style=flat-square&logo=openjdk&logoColor=white" alt="Java 21" />
   <img src="https://img.shields.io/badge/Spring_Boot-3.3.4-6DB33F?style=flat-square&logo=springboot&logoColor=white" alt="Spring Boot" />
+  <img src="https://img.shields.io/badge/Virtual_Threads-Project_Loom-9A3412?style=flat-square" alt="Virtual Threads" />
   <img src="https://img.shields.io/badge/Spring_Data_JPA-Hibernate_6-59666C?style=flat-square&logo=hibernate&logoColor=white" alt="JPA" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black" alt="React 19" />
   <img src="https://img.shields.io/badge/Vite-6-646CFF?style=flat-square&logo=vite&logoColor=white" alt="Vite" />
@@ -23,7 +24,7 @@
 
 **MockMate AI** is an enterprise-grade AI mock interview platform that simulates realistic technical interviews using real-time voice (STT/TTS) and intelligent resume parsing. 
 
-Candidates upload their resume (PDF), and the system extracts skills, projects, and work experience using **Apache PDFBox**, then conducts an adaptive technical interview powered by ultra-low-latency **Groq (LLaMA 3.3 70B)** and **Gemini 1.5 Flash**. The full-stack app is packaged as a unified single-container Docker service running on **Java 17 Spring Boot** and **React 19**.
+Candidates upload their resume (PDF), and the system extracts skills, projects, and work experience using **Apache PDFBox**, then conducts an adaptive technical interview powered by ultra-low-latency **Groq (LLaMA 3.3 70B)** and **Gemini 1.5 Flash**. The full-stack app is packaged as a unified single-container Docker service running on **Java 21 LTS**, **Spring Boot 3.3**, and **React 19**.
 
 🔗 **Live URL**: [https://mockmate-gate-9872.onrender.com](https://mockmate-gate-9872.onrender.com)
 
@@ -38,6 +39,7 @@ flowchart LR
     B --> C["PdfResumeParserService\n(Apache PDFBox 3.0)"]
     B --> D["InterviewCoachService\n(Adaptive Follow-Ups)"]
     B --> E["Spring Data JPA\n(Hibernate 6 / H2 / Postgres)"]
+    B --> H["Virtual Threads\n(Java 21 Project Loom)"]
     D --> F["Groq LLaMA 3.3 70B\n(<400ms Voice LLM)"]
     D --> G["Gemini 1.5 Flash\n(Rubric Evaluation)"]
 ```
@@ -50,7 +52,7 @@ A clean separation of concerns between backend enterprise APIs, frontend voice U
 
 ```
 MockMate-AI/
-├── src/main/java/com/mockmate/ai/       # ☕ Java 17 Spring Boot Enterprise Backend
+├── src/main/java/com/mockmate/ai/       # ☕ Java 21 Spring Boot Enterprise Backend
 │   ├── controller/                      # 📡 REST API Controllers
 │   │   ├── InterviewApiController.java  # Core endpoints: questions, answer evaluation, reports
 │   │   ├── AuthController.java          # User registration & authentication
@@ -81,8 +83,8 @@ MockMate-AI/
 │   │       ├── javaBackendService.js    # Seamless Spring Boot REST client with offline fallback
 │   │       └── grok.js / gemini.js      # Client-side direct AI connectors & prompt builders
 │
-├── Dockerfile                           # 🐳 Multi-Stage Dockerfile (Node 20 -> Maven -> JRE 17)
-├── pom.xml                              # 📦 Maven Config (Spring Boot 3.3.4, PDFBox 3.0.3)
+├── Dockerfile                           # 🐳 Multi-Stage Dockerfile (Node 20 -> Maven -> JRE 21)
+├── pom.xml                              # 📦 Maven Config (Java 21, Spring Boot 3.3.4, PDFBox 3.0.3)
 └── start-all.bat                        # ⚡ 1-Click Local Dev Launcher (Starts Frontend & Backend)
 ```
 
@@ -90,11 +92,12 @@ MockMate-AI/
 
 ## ⚡ Core Engineering Highlights
 
+* **High-Throughput Virtual Threads (Project Loom)**: Leverages Java 21 Virtual Threads (`spring.threads.virtual.enabled=true`) for non-blocking concurrent candidate voice sessions with minimal memory footprint.
 * **Layered Clean Architecture**: Built with strict separation (`Controller` ➔ `Service` ➔ `Repository` ➔ `Entity`), input validation, and centralized exception handling.
 * **In-Memory PDF Resume Parsing**: Uses **Apache PDFBox 3.0** on the server to parse PDF streams entirely in memory without writing sensitive user files to disk.
 * **Ultra-Low Latency Voice (<400ms)**: Combines browser-native **Web Speech API** with **Groq Cloud (LLaMA 3.3 70B)** for fluid conversational responsiveness.
 * **Adaptive Questioning**: Follow-up questions dynamically adjust based on candidate answers — challenging strong candidates deeper and guiding beginners.
-* **Single-Container Full-Stack Docker**: Multi-stage build compiles React assets directly into Spring Boot's static resources, yielding a standalone, production-ready JRE container.
+* **Single-Container Full-Stack Docker**: Multi-stage build compiles React assets directly into Spring Boot's static resources, yielding a standalone, production-ready JRE 21 container.
 * **Relational Persistence**: Uses **Spring Data JPA** with Hibernate 6 and includes an interactive H2 console (`/h2-console`) for rapid local testing, compatible with PostgreSQL in production.
 
 ---
@@ -116,7 +119,7 @@ MockMate-AI/
 ## 🚀 Quick Start Locally
 
 ### Prerequisites
-* **Java 17+** (JDK) & **Node.js 18+**
+* **Java 21+** (JDK) & **Node.js 18+**
 
 ### 1-Click Launch (Windows)
 Double-click [`start-all.bat`](start-all.bat) to boot both the Spring Boot Backend (`8080`) and Vite Frontend (`5173`).

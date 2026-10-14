@@ -1,6 +1,6 @@
 # ===============================================================
 # MockMate AI — Full-Stack Single Container Production Dockerfile
-# Multi-Stage Build: React 19 Frontend + Java 17 Spring Boot Backend
+# Multi-Stage Build: React 19 Frontend + Java 21 Spring Boot Backend
 # ===============================================================
 
 # --- Stage 1: Build React Frontend ---
@@ -14,7 +14,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # --- Stage 2: Build Spring Boot JAR with Built Frontend Assets ---
-FROM eclipse-temurin:17-jdk-jammy AS backend-builder
+FROM eclipse-temurin:21-jdk-jammy AS backend-builder
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y maven && rm -rf /var/lib/apt/lists/*
@@ -28,7 +28,7 @@ COPY --from=frontend-builder /app/frontend/dist/ ./src/main/resources/static/
 RUN mvn clean package -DskipTests
 
 # --- Stage 3: Lightweight Production JRE Runtime ---
-FROM eclipse-temurin:17-jre-jammy
+FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 
 # Non-root user for security best practices
