@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 /**
- * Controller endpoint to prevent Render web service hibernation.
+ * Controller endpoint to prevent cloud container hibernation.
  * Can be pinged by internal KeepAliveService or external monitors (cron-job.org / UptimeRobot).
  */
 @RestController

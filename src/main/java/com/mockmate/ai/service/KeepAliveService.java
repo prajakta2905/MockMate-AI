@@ -17,10 +17,10 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Service to keep Render free-tier instances awake indefinitely.
- * Render free web services hibernate after 15 minutes of inactivity.
+ * Service to keep cloud free-tier container instances awake indefinitely.
+ * Cloud web services often hibernate after 15 minutes of inactivity.
  * This service automatically sends a lightweight HTTP ping every 10 minutes
- * to the service's own public URL (injected by Render via RENDER_EXTERNAL_URL).
+ * to the service's own public URL (configured via APP_BASE_URL).
  */
 @Service
 public class KeepAliveService {
@@ -29,7 +29,7 @@ public class KeepAliveService {
     @Value("${mockmate.keep-alive.enabled:true}")
     private boolean enabled;
 
-    @Value("${mockmate.keep-alive.url:${RENDER_EXTERNAL_URL:${APP_BASE_URL:}}}")
+    @Value("${mockmate.keep-alive.url:${APP_BASE_URL:}}")
     private String externalUrl;
 
     private final HttpClient httpClient;
@@ -46,7 +46,7 @@ public class KeepAliveService {
 
     /**
      * Executes every 10 minutes (600,000 ms), with a 1-minute initial delay after startup.
-     * Render hibernates after 15 minutes, so 10 minutes ensures it never sleeps.
+     * Prevents free-tier containers from hibernating due to inactivity.
      */
     @Scheduled(fixedRate = 600000, initialDelay = 60000)
     public void pingSelf() {
@@ -57,7 +57,7 @@ public class KeepAliveService {
 
         String targetUrl = resolvePingUrl();
         if (targetUrl == null || targetUrl.isBlank()) {
-            log.info("Keep-alive active. Waiting for RENDER_EXTERNAL_URL or APP_BASE_URL to begin public self-pinging.");
+            log.info("Keep-alive active. Waiting for APP_BASE_URL to begin public self-pinging.");
             return;
         }
 
@@ -65,7 +65,7 @@ public class KeepAliveService {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(targetUrl))
                     .timeout(Duration.ofSeconds(15))
-                    .header("User-Agent", "MockMateAI-KeepAlive/1.0 (Render Sleep Prevention)")
+                    .header("User-Agent", "MockMateAI-KeepAlive/1.0 (Cloud Sleep Prevention)")
                     .GET()
                     .build();
 
@@ -74,7 +74,7 @@ public class KeepAliveService {
             lastPingTime = Instant.now();
             totalPingsSent++;
 
-            log.info("Keep-alive self-ping success -> {} (HTTP {}) - Render instance kept awake.", targetUrl, lastStatusCode);
+            log.info("Keep-alive self-ping success -> {} (HTTP {}) - Instance kept awake.", targetUrl, lastStatusCode);
         } catch (Exception e) {
             log.warn("Keep-alive self-ping attempt to {} encountered notice: {}", targetUrl, e.getMessage());
         }
@@ -99,12 +99,12 @@ public class KeepAliveService {
         status.put("status", "ALIVE");
         status.put("service", "MockMate AI Full-Stack Platform");
         status.put("keepAliveEnabled", enabled);
-        status.put("configuredTargetUrl", externalUrl != null && !externalUrl.isBlank() ? externalUrl : "RENDER_EXTERNAL_URL (auto on Render)");
+        status.put("configuredTargetUrl", externalUrl != null && !externalUrl.isBlank() ? externalUrl : "APP_BASE_URL");
         status.put("lastPingTime", lastPingTime != null ? lastPingTime.toString() : "Pending first cycle");
         status.put("lastStatusCode", lastStatusCode);
         status.put("totalPingsSent", totalPingsSent);
         status.put("jvmUptimeSeconds", ManagementFactory.getRuntimeMXBean().getUptime() / 1000);
-        status.put("sleepPreventionRule", "Every 10 minutes self-ping to prevent Render 15-min hibernation");
+        status.put("sleepPreventionRule", "Every 10 minutes self-ping to prevent cloud container hibernation");
         return status;
     }
 }
