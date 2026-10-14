@@ -15,6 +15,7 @@
   <img src="https://img.shields.io/badge/Vite-6-646CFF?style=flat-square&logo=vite&logoColor=white" alt="Vite" />
   <img src="https://img.shields.io/badge/Docker-Multi--Stage-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker" />
   <img src="https://img.shields.io/badge/Groq-LLaMA_3.3_70B-F05032?style=flat-square&logo=fastapi&logoColor=white" alt="Groq" />
+  <img src="https://img.shields.io/badge/Security-BCrypt_Hashing-critical?style=flat-square&logo=springsecurity&logoColor=white" alt="BCrypt" />
   <img src="https://img.shields.io/badge/JUnit-5_Tested-25A162?style=flat-square&logo=junit5&logoColor=white" alt="JUnit 5" />
 </p>
 
@@ -53,6 +54,7 @@ A clean separation of concerns between backend enterprise APIs, frontend voice U
 ```
 MockMate-AI/
 ├── src/main/java/com/mockmate/ai/       # ☕ Java 21 Spring Boot Enterprise Backend
+│   ├── config/                          # ⚙️ SecurityConfig (BCryptPasswordEncoder bean)
 │   ├── controller/                      # 📡 REST API Controllers
 │   │   ├── InterviewApiController.java  # Core endpoints: questions, answer evaluation, reports
 │   │   ├── AuthController.java          # User registration & authentication
@@ -92,6 +94,7 @@ MockMate-AI/
 
 ## ⚡ Core Engineering Highlights
 
+* **Enterprise BCrypt Security**: User passwords and demo accounts are salted and hashed using **BCrypt** (12 rounds) with constant-time matching and automatic migration for legacy credentials. Passwords are never exposed in transit or stored in plaintext.
 * **High-Throughput Virtual Threads (Project Loom)**: Leverages Java 21 Virtual Threads (`spring.threads.virtual.enabled=true`) for non-blocking concurrent candidate voice sessions with minimal memory footprint.
 * **Layered Clean Architecture**: Built with strict separation (`Controller` ➔ `Service` ➔ `Repository` ➔ `Entity`), input validation, and centralized exception handling.
 * **In-Memory PDF Resume Parsing**: Uses **Apache PDFBox 3.0** on the server to parse PDF streams entirely in memory without writing sensitive user files to disk.
