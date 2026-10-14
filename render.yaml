@@ -1,10 +1,11 @@
 services:
   - type: web
-    name: mockmate-ai
+    name: mockmate-prajakta-2026
     runtime: docker
     plan: free
     region: oregon
     dockerfilePath: ./Dockerfile
+    dockerContext: .
     healthCheckPath: /api/keep-alive
     envVars:
       - key: PORT
@@ -13,4 +14,15 @@ services:
         value: "-Xmx384m -Xms128m -XX:+UseG1GC"
       - key: KEEP_ALIVE_ENABLED
         value: "true"
-
+      - key: GROQ_API_KEY
+        sync: false
+      - key: VITE_GROK_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: VITE_GEMINI_API_KEY
+        sync: false
+      - key: VITE_SUPABASE_URL
+        value: "https://chmsevedhdxhwugliksi.supabase.co"
+      - key: VITE_SUPABASE_ANON_KEY
+        value: "sb_publishable_9SK2wGYYGlkORLjEE4SRlA_cxkMx-X0"
