@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: mockmate-prajakta-2026
+    name: mockmate-gate-9872
     runtime: docker
     plan: free
     region: oregon
