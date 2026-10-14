@@ -1,3 +1,5 @@
+import { enforceQuestionWordCount } from './gemini';
+
 export const getGrokApiKey = () => {
   const fromMeta = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GROK_API_KEY) || '';
   const fromProcess = (typeof process !== 'undefined' && process.env?.VITE_GROK_API_KEY) || '';
@@ -242,11 +244,11 @@ async function callGroqCloudApi({
 
   const systemPrompt = `You are a concise, sharp technical interviewer conducting a live voice interview for a ${targetRole} position.
 CRITICAL RULES FOR QUESTIONS:
-1. Every question MUST be SHORT and DIRECT (strictly 8 to 14 words max).
+1. Every question MUST be STRICTLY between 15 and 18 words long. Never less than 15 words, never more than 18 words. Count words carefully.
 2. NO long compound sentences or multi-part questions.
-3. If asking a follow-up, probe ONE specific trade-off or technical decision sharply and briefly.
+3. If asking a follow-up, probe ONE specific trade-off or technical decision sharply and briefly (15-18 words).
 4. Keep the question natural and conversational so Text-to-Speech reads it quickly.
-5. UNCLEAR / GIBBERISH / UNINTELLIGIBLE ANSWER HANDLING: If the candidate's answer is unintelligible, gibberish, filler noises, random letters, or completely incomprehensible, you MUST set "action": "clarify", "isFollowUp": true, and "nextQuestion": "I didn't quite catch that. Could you please repeat or clarify your answer?". DO NOT advance to the next question.
+5. UNCLEAR / GIBBERISH / UNINTELLIGIBLE ANSWER HANDLING: If the candidate's answer is unintelligible, gibberish, filler noises, random letters, or completely incomprehensible, you MUST set "action": "clarify", "isFollowUp": true, and "nextQuestion": "I did not catch that clearly. Could you please repeat your answer and explain your engineering approach?". DO NOT advance to the next question.
 6. REPEAT / PREVIOUS REQUESTS: If the candidate asks you to repeat the question, go back, or what the previous question was, you MUST return "action": "previous".
 7. TRANSITIONING: If moving to the next planned question, set "isFollowUp" to false, "action" to "next", and "nextQuestion" to the next planned question.
 
@@ -254,7 +256,7 @@ You MUST respond strictly with valid JSON with this exact schema:
 {
   "action": "next" | "previous" | "repeat" | "clarify",
   "isFollowUp": true,
-  "nextQuestion": "Short, punchy spoken question under 14 words",
+  "nextQuestion": "Spoken question strictly between fifteen and eighteen words long",
   "rationale": "1-sentence reason"
 }`;
 
@@ -340,6 +342,9 @@ Decide whether to ask a follow-up probe on their answer or move forward. Return 
             parsed.nextQuestion = nextPlannedQ;
           }
         }
+        if (parsed.nextQuestion && !isClarifyOrNav) {
+          parsed.nextQuestion = enforceQuestionWordCount(parsed.nextQuestion);
+        }
         return parsed;
       } catch (err) {
         clearTimeout(fbTimeoutId);
@@ -362,6 +367,9 @@ Decide whether to ask a follow-up probe on their answer or move forward. Return 
       if (!parsed.nextQuestion || parsed.nextQuestion.trim().length < 5) {
         parsed.nextQuestion = nextPlannedQ;
       }
+    }
+    if (parsed.nextQuestion && !isClarifyOrNav) {
+      parsed.nextQuestion = enforceQuestionWordCount(parsed.nextQuestion);
     }
     return parsed;
   } catch (err) {
@@ -464,7 +472,7 @@ function generateIntelligentFollowUpLocal({
     return {
       action: 'clarify',
       isFollowUp: true,
-      nextQuestion: "I didn't quite catch that. Could you please repeat or clarify your answer?",
+      nextQuestion: "I did not catch that clearly. Could you please repeat your answer and explain your engineering approach?",
       rationale: "Candidate answered with gibberish, filler sounds, or an incomprehensible string."
     };
   }
@@ -474,7 +482,7 @@ function generateIntelligentFollowUpLocal({
     const nextQ = questionPool[1] || questionPool[0];
     return {
       isFollowUp: false,
-      nextQuestion: nextQ ? nextQ.question : "Could you tell me about your technical approach?",
+      nextQuestion: nextQ ? enforceQuestionWordCount(nextQ.question) : "Could you explain how you design and structure scalable software systems when planning a complex feature?",
       rationale: "Introductory answer complete; moving to fundamental engineering questions."
     };
   }
@@ -484,7 +492,7 @@ function generateIntelligentFollowUpLocal({
     if (lowerAnswer.includes('jwt') || lowerAnswer.includes('token') || lowerAnswer.includes('auth')) {
       return {
         isFollowUp: true,
-        nextQuestion: "In your auth setup, how did you handle token revocation and security?",
+        nextQuestion: enforceQuestionWordCount("In your authentication setup, how did you handle token revocation, refresh token rotation, and API gateway security?"),
         rationale: "Candidate highlighted JWT authentication; probing security tradeoffs."
       };
     }
@@ -492,7 +500,7 @@ function generateIntelligentFollowUpLocal({
     if (lowerAnswer.includes('redis') || lowerAnswer.includes('cache') || lowerAnswer.includes('caching')) {
       return {
         isFollowUp: true,
-        nextQuestion: "How did you handle cache invalidation and stampedes in Redis?",
+        nextQuestion: enforceQuestionWordCount("When implementing Redis caching, how did you prevent cache stampedes, dogpiling, and stale data synchronization issues?"),
         rationale: "Candidate mentioned caching; probing invalidation and concurrency."
       };
     }
@@ -500,7 +508,7 @@ function generateIntelligentFollowUpLocal({
     if (lowerAnswer.includes('microservice') || lowerAnswer.includes('microservices') || lowerAnswer.includes('distributed')) {
       return {
         isFollowUp: true,
-        nextQuestion: "In your microservices, how did you maintain data consistency across services?",
+        nextQuestion: enforceQuestionWordCount("In your distributed microservices architecture, how did you maintain eventual data consistency across isolated database boundaries?"),
         rationale: "Probing distributed systems consistency patterns."
       };
     }
@@ -508,7 +516,7 @@ function generateIntelligentFollowUpLocal({
     if (lowerAnswer.includes('websocket') || lowerAnswer.includes('realtime') || lowerAnswer.includes('real-time')) {
       return {
         isFollowUp: true,
-        nextQuestion: "With WebSockets, how did you manage connection state and reconnections at scale?",
+        nextQuestion: enforceQuestionWordCount("When building real-time WebSockets, how did you manage connection state, heartbeat pinging, and automated reconnections at scale?"),
         rationale: "Probing real-time infrastructure scalability."
       };
     }
@@ -516,7 +524,7 @@ function generateIntelligentFollowUpLocal({
     if (lowerAnswer.includes('next.js') || lowerAnswer.includes('ssr') || lowerAnswer.includes('server component')) {
       return {
         isFollowUp: true,
-        nextQuestion: "When do you choose Server Components versus Client Components in Next.js?",
+        nextQuestion: enforceQuestionWordCount("When building modern web applications, how do you evaluate boundaries between Server Components and dynamic Client Components?"),
         rationale: "Evaluating Next.js architectural boundaries."
       };
     }
@@ -524,7 +532,7 @@ function generateIntelligentFollowUpLocal({
     if (lowerAnswer.includes('postgres') || lowerAnswer.includes('database') || lowerAnswer.includes('sql') || lowerAnswer.includes('mongodb')) {
       return {
         isFollowUp: true,
-        nextQuestion: "How did you optimize your database queries and indexes for performance?",
+        nextQuestion: enforceQuestionWordCount("In your database architecture, how did you optimize slow queries, analyze execution plans, and structure composite indexes?"),
         rationale: "Deep dive into database reliability and index performance."
       };
     }
@@ -532,16 +540,16 @@ function generateIntelligentFollowUpLocal({
     if (lowerAnswer.includes('rag') || lowerAnswer.includes('vector') || lowerAnswer.includes('embedding') || lowerAnswer.includes('llm')) {
       return {
         isFollowUp: true,
-        nextQuestion: "How did you reduce retrieval latency and hallucinations in your RAG pipeline?",
+        nextQuestion: enforceQuestionWordCount("In your AI pipeline, how did you reduce vector retrieval latency, manage chunking strategies, and prevent hallucinations?"),
         rationale: "Probing generative AI engineering precision and latency mitigation."
       };
     }
 
-    // Short answers trigger an elaboration follow-up
+    // Short answers trigger an elaboration follow-up (Strictly 15-18 words)
     if (candidateAnswer.trim().split(/\s+/).length < 10) {
       return {
         isFollowUp: true,
-        nextQuestion: "Could you expand on that? What primary tradeoff did you consider?",
+        nextQuestion: enforceQuestionWordCount("Could you please elaborate on that technical approach, explaining the primary architectural trade-offs and decisions you considered?"),
         rationale: "Answer was brief; requesting structured elaboration."
       };
     }
@@ -553,7 +561,7 @@ function generateIntelligentFollowUpLocal({
 
   return {
     isFollowUp: false,
-    nextQuestion: nextQ ? nextQ.question : "Could you tell me about another significant project you led?",
+    nextQuestion: nextQ ? enforceQuestionWordCount(nextQ.question) : "Could you describe another significant software engineering milestone you delivered and the architectural trade-offs you evaluated?",
     rationale: "Answer was sufficiently explored; transitioning to the next planned question."
   };
 }

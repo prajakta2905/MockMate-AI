@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, Mic, CheckCircle2, Play, RefreshCw, Cpu, Layers, Users } from 'lucide-react';
-import { generateQuestionPoolWithGemini, cleanCandidateName } from '../services/gemini';
+import { generateQuestionPoolWithGemini, cleanCandidateName, enforceQuestionWordCount } from '../services/gemini';
 import { generateQuestionsWithJavaBackend } from '../services/javaBackendService';
 import { speechService } from '../services/speechService';
 
@@ -82,6 +82,9 @@ export default function InterviewPrep({ resume, setup, onReadyToStart, onBack })
     }
     if (!text) return null;
 
+    // Enforce 15-18 words strictly
+    text = enforceQuestionWordCount(text);
+
     return {
       id: q.id || `q-${Math.random().toString(36).substr(2, 8)}`,
       category: q.category || fallbackCategory,
@@ -101,7 +104,7 @@ export default function InterviewPrep({ resume, setup, onReadyToStart, onBack })
       const q = normalizeQuestion(
         questionPool.warmupQuestion,
         'Introduction',
-        `Hello ${firstName}, welcome to the interview today! To start us off, could you please give a brief overview of yourself, your background, and what you specialize in as a ${targetRole}?`
+        `Could you introduce yourself, your software engineering background, and what you specialize in as an engineer?`
       );
       if (q) allQuestions.push(q);
     }
@@ -111,7 +114,7 @@ export default function InterviewPrep({ resume, setup, onReadyToStart, onBack })
       const q = normalizeQuestion(
         questionPool.foundationalQuestion,
         'Engineering Approach',
-        `When starting a new project or tackling a complex feature from scratch, what is your standard approach for planning architecture and ensuring maintainability?`
+        `When starting a new project from scratch, what is your standard approach for planning architecture and maintainability?`
       );
       if (q) allQuestions.push(q);
     }
@@ -126,7 +129,7 @@ export default function InterviewPrep({ resume, setup, onReadyToStart, onBack })
         const q = normalizeQuestion(
           item,
           'Technical',
-          `Can you walk me through your technical experience and trade-offs when building systems as a ${targetRole}?`
+          `Can you walk me through your technical experience, core stack, and architectural trade-offs in past projects?`
         );
         if (q) allQuestions.push(q);
       });
@@ -138,7 +141,7 @@ export default function InterviewPrep({ resume, setup, onReadyToStart, onBack })
         const q = normalizeQuestion(
           item,
           'Project Architecture',
-          `Looking at your project ${primaryProject}, can you walk me through the end-to-end architecture and key trade-offs?`
+          `Looking at your primary engineering project, can you walk me through the end-to-end architecture and key trade-offs?`
         );
         if (q) allQuestions.push(q);
       });
@@ -150,35 +153,38 @@ export default function InterviewPrep({ resume, setup, onReadyToStart, onBack })
         const q = normalizeQuestion(
           item,
           'Behavioral',
-          `Tell me about a challenging technical decision you had to make and how you handled disagreement within your team.`
+          `Tell me about a challenging technical decision you had to make and how you handled team disagreement.`
         );
         if (q) allQuestions.push(q);
       });
     }
 
     if (allQuestions.length === 0) {
+      const q1 = enforceQuestionWordCount(`Welcome to your interview today! Could you introduce yourself, your engineering background, and your technical skills?`);
+      const q2 = enforceQuestionWordCount(`When starting a new project from scratch, what is your standard approach for planning architecture and maintainability?`);
+      const q3 = enforceQuestionWordCount(`Looking at your primary engineering project, can you walk me through the end-to-end architecture and key trade-offs?`);
       allQuestions = [
         {
           id: 'q1-warmup',
           category: 'Introduction & Background',
-          question: `Hello ${firstName}, welcome to the interview today! To start us off, could you please give a brief overview of yourself, your background, and what you specialize in as a ${targetRole}?`,
-          questionText: `Hello ${firstName}, welcome to the interview today! To start us off, could you please give a brief overview of yourself, your background, and what you specialize in as a ${targetRole}?`,
+          question: q1,
+          questionText: q1,
           focus: 'Career overview, communication clarity, and introduction',
           difficulty: 'warm-up'
         },
         {
           id: 'q2-fundamentals',
           category: 'Engineering Mindset & Approach',
-          question: `When starting a new project or tackling a complex feature from scratch, what is your standard approach for planning architecture, choosing the right stack, and ensuring maintainability?`,
-          questionText: `When starting a new project or tackling a complex feature from scratch, what is your standard approach for planning architecture, choosing the right stack, and ensuring maintainability?`,
+          question: q2,
+          questionText: q2,
           focus: 'Systematic problem breakdown, architectural thinking, and best practices',
           difficulty: 'medium'
         },
         {
           id: 'q3-project',
           category: 'Project Deep-Dive',
-          question: `Looking at your project ${primaryProject}, can you walk me through the end-to-end architecture and key trade-offs?`,
-          questionText: `Looking at your project ${primaryProject}, can you walk me through the end-to-end architecture and key trade-offs?`,
+          question: q3,
+          questionText: q3,
           focus: 'Architectural trade-offs, scalability, and system modularity',
           difficulty: 'hard'
         }

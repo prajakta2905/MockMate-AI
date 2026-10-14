@@ -199,7 +199,9 @@ public class InterviewApiController {
         }
 
         if (followUp == null || followUp.isBlank()) {
-            followUp = "Good explanation. Can you elaborate on the performance implications and trade-offs of this approach in high-throughput production scenarios?";
+            followUp = InterviewCoachService.enforceWordCount("Could you elaborate on the performance implications and key trade-offs of this architectural approach in production?");
+        } else {
+            followUp = InterviewCoachService.enforceWordCount(followUp);
         }
 
         result.put("feedback", followUp);

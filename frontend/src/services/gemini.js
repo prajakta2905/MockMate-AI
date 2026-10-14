@@ -261,7 +261,59 @@ Return strictly a JSON object with this exact schema:
  * 2. Medium fundamentals / High-level problem solving & architectural approach
  * 3. Core technical skills & frameworks (from resume)
  * 4. Project deep-dive & trade-offs (from resume)
- * 5. Production blockers & edge-case debugging
+ * 5. Production blockers & edge-case debug/**
+ * Enforces that an interview question is strictly between 15 and 18 words long.
+ */
+export function enforceQuestionWordCount(question) {
+  if (!question || typeof question !== 'string') {
+    return 'Could you introduce your technical background, core skills, and describe your proudest software engineering achievement?';
+  }
+  let clean = question.replace(/\s+/g, ' ').trim();
+  const words = clean.split(' ').filter(Boolean);
+  const count = words.length;
+
+  if (count >= 15 && count <= 18) {
+    if (!clean.endsWith('?')) clean += '?';
+    return clean;
+  }
+
+  if (count > 18) {
+    const trimmed = words.slice(0, 17).join(' ').replace(/[,;:\-\s]+$/, '');
+    return trimmed + '?';
+  }
+
+  // count < 15: Expand gracefully to strictly reach 15-18 words
+  let prefix = '';
+  if (/^(how|what|why|when|where)/i.test(clean)) {
+    prefix = count <= 10 ? 'In your production engineering experience, ' : 'In your experience, ';
+  } else {
+    prefix = count <= 10 ? 'From an engineering and architectural perspective, ' : 'In software engineering, ';
+  }
+
+  clean = (prefix + clean).replace(/\s+/g, ' ').trim();
+  let newWords = clean.split(' ').filter(Boolean);
+  if (newWords.length >= 15 && newWords.length <= 18) {
+    if (!clean.endsWith('?')) clean += '?';
+    return clean;
+  }
+
+  if (newWords.length > 18) {
+    const trimmed = newWords.slice(0, 16).join(' ').replace(/[,;:\-\s]+$/, '');
+    return trimmed + '?';
+  }
+
+  while (clean.split(' ').filter(Boolean).length < 15) {
+    clean = clean.replace(/\?$/, '') + ' in detail?';
+  }
+  const finalWords = clean.split(' ').filter(Boolean);
+  if (finalWords.length > 18) {
+    return finalWords.slice(0, 16).join(' ').replace(/[,;:\-\s]+$/, '') + '?';
+  }
+  if (!clean.endsWith('?')) clean += '?';
+  return clean;
+}
+
+/**
  * 6. Behavioral & team collaboration (STAR)
  */
 export async function generateQuestionPoolWithGemini(parsedResume, interviewType = 'mixed', duration = 20, apiKeyOverride = null) {
@@ -284,16 +336,16 @@ export async function generateQuestionPoolWithGemini(parsedResume, interviewType
 
   const systemInstruction = `You are a Senior Technical Interviewer conducting a concise voice interview for ${firstName} for a ${role} position.
 CRITICAL MANDATORY RULES FOR QUESTIONS:
-- Every question MUST be SHORT, DIRECT, and PUNCHY (strictly between 10 to 16 words).
+- Every question MUST be STRICTLY between 15 and 18 words long. Never less than 15 words, never more than 18 words. Count words carefully.
 - NO long compound sentences or multi-part questions.
 - It will be spoken out loud via Text-to-Speech, so it must be fast to hear and easy to answer.
 - You must generate COMPLETELY UNIQUE, NOVEL questions each time based on the candidate's resume. NEVER repeat previous or textbook questions.
-1. Q1 Warm-up: Quick introduction tailored to their background.
-2. Q2 Architecture: High-level problem approach.
-3. Q3 Tech Skill: Core framework question on ${skillsList.slice(0, 30) || 'their tech stack'}.
-4. Q4 Project: Deep dive into ${parsedResume.projects?.[0]?.name || 'their primary project'}.
-5. Q5 Blocker: A tough bug or technical challenge resolved.
-6. Q6 Behavioral: Team collaboration or disagreement.
+1. Q1 Warm-up: Quick introduction tailored to their background (15-18 words).
+2. Q2 Architecture: High-level problem approach (15-18 words).
+3. Q3 Tech Skill: Core framework question on ${skillsList.slice(0, 30) || 'their tech stack'} (15-18 words).
+4. Q4 Project: Deep dive into ${parsedResume.projects?.[0]?.name || 'their primary project'} (15-18 words).
+5. Q5 Blocker: A tough bug or technical challenge resolved (15-18 words).
+6. Q6 Behavioral: Team collaboration or disagreement (15-18 words).
 Return strictly pure JSON.`;
 
   // Adjust question quantities based on duration
@@ -320,7 +372,7 @@ Return strictly pure JSON.`;
     return Array(count).fill(0).map((_, i) => ({
       id: `${idPrefix}-${i + 1}`,
       category: category,
-      question: `Replace this with a unique ${category.toLowerCase()} question ${i + 1}`,
+      question: `Replace this with a unique ${category.toLowerCase()} question strictly fifteen to eighteen words long ${i + 1}`,
       focus: `Focus on ${category.toLowerCase()}`,
       difficulty: "medium"
     }));
@@ -330,14 +382,14 @@ Return strictly pure JSON.`;
     warmupQuestion: {
       id: "q1-warmup",
       category: "Introduction",
-      question: "Replace this with a unique warmup question",
+      question: "Could you introduce your technical background, core skills, and describe your proudest software engineering achievement?",
       focus: "Career overview & communication",
       difficulty: "warm-up"
     },
     foundationalQuestion: {
       id: "q2-fundamentals",
       category: "Engineering Approach",
-      question: "Replace this with a unique architecture question",
+      question: "When planning a complex feature from scratch, how do you decide between synchronous REST APIs and asynchronous messaging?",
       focus: "Problem breakdown",
       difficulty: "medium"
     },
@@ -347,7 +399,7 @@ Return strictly pure JSON.`;
   };
 
   const prompt = `
-Generate a completely UNIQUE and NOVEL crisp, short question pool JSON for ${cleanName} (${role}).
+Generate a completely UNIQUE and NOVEL crisp question pool JSON for ${cleanName} (${role}).
 The total interview duration is ${duration} minutes.
 Unique Session Seed: ${randomSalt}_${Date.now()}
 ${selectedFocus}
@@ -364,17 +416,37 @@ ${parsedResume.experience?.map(e => `${e.role || 'Engineer'} at ${e.company || '
 CRITICAL RULES:
 1. Every question MUST be UNIQUE and freshly created. DO NOT repeat standard generic interview questions.
 2. Directly reference and probe the candidate's actual projects (${parsedResume.projects?.map(p => p.name).join(', ') || 'listed projects'}) and frameworks (${skillsList.slice(0, 50)}).
-3. Questions must be short, conversational, and direct (10 to 16 words max).
+3. STRICT WORD COUNT: Every question MUST be strictly between 15 and 18 words long. Never less than 15, never more than 18.
 4. Use the EXACT JSON schema below, but replace the placeholders with your unique questions:
 
 ${JSON.stringify(schemaObj, null, 2)}
 `;
 
+  const sanitizePoolWordCounts = (pool) => {
+    if (!pool) return pool;
+    if (pool.warmupQuestion?.question) {
+      pool.warmupQuestion.question = enforceQuestionWordCount(pool.warmupQuestion.question);
+    }
+    if (pool.foundationalQuestion?.question) {
+      pool.foundationalQuestion.question = enforceQuestionWordCount(pool.foundationalQuestion.question);
+    }
+    ['skillsQuestions', 'technicalQuestions', 'projectQuestions', 'behavioralQuestions'].forEach((key) => {
+      if (Array.isArray(pool[key])) {
+        pool[key].forEach((q) => {
+          if (q && q.question) {
+            q.question = enforceQuestionWordCount(q.question);
+          }
+        });
+      }
+    });
+    return pool;
+  };
+
   // 1. Try Groq first with high temperature (0.85) for maximum question diversity
   try {
     const groqPool = await callGroqJson(prompt, systemInstruction, 0.85);
     if (groqPool && (groqPool.warmupQuestion || groqPool.skillsQuestions?.length > 0 || groqPool.technicalQuestions?.length > 0 || groqPool.foundationalQuestion)) {
-      return groqPool;
+      return sanitizePoolWordCounts(groqPool);
     }
   } catch (err) {
     console.warn('Groq question pool skipped/failed:', err.message);
@@ -384,14 +456,13 @@ ${JSON.stringify(schemaObj, null, 2)}
   try {
     const geminiPool = await callGemini(prompt, systemInstruction, apiKeyOverride, 0.85);
     if (geminiPool && (geminiPool.warmupQuestion || geminiPool.skillsQuestions?.length > 0 || geminiPool.technicalQuestions?.length > 0 || geminiPool.foundationalQuestion)) {
-      return geminiPool;
+      return sanitizePoolWordCounts(geminiPool);
     }
   } catch (err) {
     console.warn('Gemini question pool skipped/failed:', err.message);
   }
 
-  // 3. High-Precision Context-Aware Fallback (dynamically randomized)
-  return generateContextAwareQuestionPool(parsedResume, interviewType);
+  return sanitizePoolWordCounts(generateContextAwareQuestionPool(parsedResume, interviewType));
 }
 
 /**
@@ -671,26 +742,26 @@ function generateContextAwareQuestionPool(resume, type) {
     return shuffled.slice(0, Math.min(count, shuffled.length));
   };
 
-  // 1. Diverse Warm-up question variations
+  // 1. Diverse Warm-up question variations (Strictly 15 to 18 words)
   const warmupOptions = [
-    `Hi ${firstName}, welcome! Could you give a brief introduction of yourself, your journey, and what you specialize in as a ${targetRole}?`,
-    `Hello ${firstName}! To kick things off, could you walk me through your engineering background and the core stack you used in ${primaryProject}?`,
-    `Welcome ${firstName}! Can you share a quick snapshot of your technical career, key achievements, and what excites you about this ${targetRole} role?`,
-    `Hi ${firstName}, great to meet you! Walk me through your background and the primary architectural problems you've worked on recently.`,
-    `Hello ${firstName}, welcome to the interview! To begin, how would you summarize your technical strengths and hands-on experience?`
+    `Could you introduce yourself, highlight your primary technical stack, and describe your proudest milestone in software engineering?`,
+    `Can you walk me through your engineering journey, key technical projects, and what software systems you specialize in?`,
+    `To begin, please share a concise summary of your technical background, programming languages, and recent career accomplishments.`,
+    `Welcome to your interview today! Can you introduce your engineering background and the systems you enjoy building most?`,
+    `Could you summarize your core technical strengths, preferred development stack, and what problems you enjoy solving as an engineer?`
   ];
 
-  // 2. Diverse Foundational Engineering Approach variations
+  // 2. Diverse Foundational Engineering Approach variations (Strictly 15 to 18 words)
   const foundationalOptions = [
-    `When planning a complex feature from scratch, how do you decide between synchronous REST APIs versus asynchronous event messaging?`,
-    `How do you approach database schema design and indexing to prevent contention and bottlenecks under high concurrent read/write traffic?`,
+    `When planning a complex feature from scratch, how do you decide between synchronous REST APIs and asynchronous messaging?`,
+    `How do you approach database schema design and indexing to prevent contention and bottlenecks under high concurrent traffic?`,
     `When designing a new service, what criteria do you use to balance premature optimization versus scalable modular architecture?`,
-    `If a microservice begins experiencing elevated p99 response times in production, walk me through your systematic debugging checklist.`,
-    `In a distributed architecture, how do you handle partial network failures and maintain data consistency across services?`,
+    `If a production microservice experiences elevated p99 latency spikes, walk me through your systematic technical debugging checklist.`,
+    `In a distributed architecture, how do you handle partial network failures and maintain data consistency across decoupled microservices?`,
     `When architecting API rate limiting and authentication, what trade-offs do you evaluate between stateless JWTs and stateful sessions?`
   ];
 
-  // 3. Dynamic Core Skills question bank based on candidate's skills
+  // 3. Dynamic Core Skills question bank based on candidate's skills (Strictly 15 to 18 words)
   const skillsOptions = [];
   
   // Java / Spring Boot specific
@@ -698,22 +769,22 @@ function generateContextAwareQuestionPool(resume, type) {
     skillsOptions.push(
       {
         category: 'Spring & Architecture',
-        question: `In Spring Boot, how do you configure HikariCP connection pool sizing and prevent thread starvation under sudden load spikes?`,
+        question: `In Spring Boot, how do you configure HikariCP connection pool sizing and prevent thread starvation under sudden spikes?`,
         focus: 'Database connection pooling & concurrency'
       },
       {
         category: 'JVM Internals',
-        question: `How does the Java Memory Model handle heap allocation and GC pause times with modern collectors like G1 or ZGC?`,
+        question: `How does the Java Memory Model allocate heap versus stack, and how do you diagnose memory leaks?`,
         focus: 'Memory management & Garbage Collection'
       },
       {
         category: 'JPA & Persistence',
-        question: `In Hibernate and JPA, how do you identify the N+1 query problem, and when do you use JOIN FETCH versus Entity Graphs?`,
+        question: `In Hibernate and JPA, how do you identify the N+1 query problem, and when do you use JOIN FETCH?`,
         focus: 'ORM performance optimization'
       },
       {
         category: 'Concurrency & Locking',
-        question: `Explain the practical differences between Optimistic and Pessimistic locking in database transactions, and how you implement them in JPA.`,
+        question: `Explain the practical differences between Optimistic and Pessimistic locking, and how you implement them in JPA transactions.`,
         focus: 'Transaction isolation & concurrency'
       }
     );
@@ -724,17 +795,17 @@ function generateContextAwareQuestionPool(resume, type) {
     skillsOptions.push(
       {
         category: 'Frontend Performance',
-        question: `In React, how do you diagnose unnecessary component re-renders, and when do you reach for memoization with useMemo and useCallback?`,
+        question: `In React, how do you diagnose unnecessary component re-renders, and when do you reach for memoization with useMemo?`,
         focus: 'React rendering pipeline & performance'
       },
       {
         category: 'State Management',
-        question: `How do you draw architectural boundaries between server-cached state and client UI state in a scalable web application?`,
+        question: `How do you evaluate state management trade-offs between client-side stores and server-side cached state in modern applications?`,
         focus: 'State synchronization & architecture'
       },
       {
         category: 'Web Vitals',
-        question: `Walk me through how you optimize Core Web Vitals, specifically Largest Contentful Paint and Interaction to Next Paint.`,
+        question: `Walk me through the systematic strategies you use to optimize page load times and Core Web Vitals.`,
         focus: 'Page speed & bundle optimization'
       }
     );
@@ -744,59 +815,59 @@ function generateContextAwareQuestionPool(resume, type) {
   skillsOptions.push(
     {
       category: 'Database Optimization',
-      question: `In ${databaseTech}, how do you evaluate an EXPLAIN query plan to identify slow sequential scans and optimize composite indexes?`,
+      question: `In database systems, how do you evaluate an EXPLAIN plan to identify slow sequential scans and add composite indexes?`,
       focus: 'Query optimization & indexing'
     },
     {
       category: 'Caching Strategies',
-      question: `When implementing Redis caching, how do you prevent cache stampedes, dogpiling, and stale data synchronization issues?`,
+      question: `What Redis caching patterns have you used in production to protect against cache stampedes and stale data?`,
       focus: 'Distributed caching & invalidation'
     },
     {
       category: 'API Security',
-      question: `When designing public APIs, how do you protect against brute force and DDoS attacks while maintaining low latency?`,
+      question: `When designing public APIs, how do you implement rate limiting and token bucket algorithms to prevent denial of service?`,
       focus: 'API gateway & security boundaries'
     }
   );
 
   const selectedSkillsQ = pickMultiple(skillsOptions, 2);
 
-  // 4. Dynamic Project Questions injecting candidate's actual projects
+  // 4. Dynamic Project Questions injecting candidate's actual projects (Strictly 15 to 18 words)
   const projectOptions = [
     {
       category: 'Project Architecture',
-      question: `In ${primaryProject}, can you walk me through the high-level data flow between your frontend, backend, and database?`,
+      question: `In your primary engineering project, can you walk me through the high-level data flow between frontend, backend, and database?`,
       focus: 'End-to-end data flow & modularity'
     },
     {
       category: 'Production Challenges',
-      question: `What was the most challenging technical roadblock or bug you resolved while building ${primaryProject}?`,
+      question: `What was the most challenging technical roadblock or production bug you resolved while building your primary engineering project?`,
       focus: 'Root cause analysis & debugging'
     },
     {
       category: 'Scalability & Trade-offs',
-      question: `If ${primaryProject} had to handle 10x traffic overnight, which component would bottleneck first and how would you scale it?`,
+      question: `If your primary application had to handle 10x traffic overnight, which component would bottleneck first and how would you scale?`,
       focus: 'Scaling bottlenecks & reliability'
     },
     {
       category: 'Engineering Decisions',
-      question: `Looking back at ${secondaryProject !== 'your secondary project' ? secondaryProject : primaryProject}, what technical decision would you architect differently today?`,
+      question: `Looking back at your software engineering projects, what architectural decision would you design differently today and why?`,
       focus: 'Architectural hindsight & trade-offs'
     }
   ];
 
   const selectedProjectQ = pickMultiple(projectOptions, 2);
 
-  // 5. Dynamic Behavioral Questions
+  // 5. Dynamic Behavioral Questions (Strictly 15 to 18 words)
   const behavioralOptions = [
     {
       category: 'Team Collaboration',
-      question: `Tell me about a technical disagreement you had with a teammate or lead. How did you resolve it constructively?`,
+      question: `Tell me about a technical disagreement you had with a teammate or lead, and explain how you resolved it.`,
       focus: 'Constructive conflict resolution & STAR'
     },
     {
       category: 'Ownership & Deadlines',
-      question: `Describe a situation where a critical production bug appeared right before a release. How did you triage and deliver?`,
+      question: `Describe an experience where a critical production bug occurred near a deadline, and explain how you triaged it.`,
       focus: 'High-pressure troubleshooting & STAR'
     },
     {
@@ -812,35 +883,35 @@ function generateContextAwareQuestionPool(resume, type) {
     warmupQuestion: {
       id: 'q1-warmup',
       category: 'Introduction',
-      question: pickOne(warmupOptions),
+      question: enforceQuestionWordCount(pickOne(warmupOptions)),
       focus: 'Communication clarity and career intro',
       difficulty: 'warm-up'
     },
     foundationalQuestion: {
       id: 'q2-fundamentals',
       category: 'Engineering Approach',
-      question: pickOne(foundationalOptions),
+      question: enforceQuestionWordCount(pickOne(foundationalOptions)),
       focus: 'Systematic problem breakdown',
       difficulty: 'medium'
     },
     skillsQuestions: selectedSkillsQ.map((item, i) => ({
       id: `q3-skills-${i + 1}`,
       category: item.category,
-      question: item.question,
+      question: enforceQuestionWordCount(item.question),
       focus: item.focus,
       difficulty: 'medium'
     })),
     projectQuestions: selectedProjectQ.map((item, i) => ({
       id: `q4-project-${i + 1}`,
       category: item.category,
-      question: item.question,
+      question: enforceQuestionWordCount(item.question),
       focus: item.focus,
       difficulty: i === 0 ? 'medium' : 'hard'
     })),
     behavioralQuestions: selectedBehavioralQ.map((item, i) => ({
       id: `q6-behavioral-${i + 1}`,
       category: item.category,
-      question: item.question,
+      question: enforceQuestionWordCount(item.question),
       focus: item.focus,
       difficulty: 'medium'
     }))

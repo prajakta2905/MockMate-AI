@@ -25,7 +25,7 @@ import Timer from './Timer';
 import TranscriptDrawer from './TranscriptDrawer';
 import { speechService } from '../services/speechService';
 import { evaluateAnswerAndGenerateNextQuestion, isRepeatOrPreviousCommand, isUnclearOrGibberishAnswer } from '../services/grok';
-import { cleanCandidateName, getCandidateFirstName } from '../services/gemini';
+import { cleanCandidateName, getCandidateFirstName, enforceQuestionWordCount } from '../services/gemini';
 
 export default function InterviewScreen({
   resume,
@@ -48,7 +48,7 @@ export default function InterviewScreen({
     if (questionPool && questionPool.length > 0) {
       return questionPool[0];
     }
-    const defaultText = `Hello ${firstName || 'there'}, welcome to your interview! Could you please introduce yourself, your core engineering background, and key technical stack?`;
+    const defaultText = enforceQuestionWordCount(`Welcome to your interview today! Could you introduce yourself, your engineering background, and your technical skills?`);
     return {
       id: 'q1-init',
       category: 'Introduction',
@@ -194,8 +194,11 @@ export default function InterviewScreen({
 
   // Speak question function
   const speakQuestion = (rawInput) => {
-    const text = typeof rawInput === 'string' ? rawInput.trim() : getQuestionText(rawInput);
+    let text = typeof rawInput === 'string' ? rawInput.trim() : getQuestionText(rawInput);
     if (!text) return;
+
+    // Enforce 15-18 words strictly for optimal interview pacing and TTS clarity
+    text = enforceQuestionWordCount(text);
 
     updateInterviewerStatus('speaking');
     setCandidateAnswerText('');
@@ -347,11 +350,12 @@ export default function InterviewScreen({
         isClarifyPromptRef.current = true;
         setIsFollowUp(true);
         setFollowUpRationale(evaluation.rationale || "Candidate answer was unclear — requesting clarification");
+        const clarifyText = enforceQuestionWordCount(evaluation.nextQuestion || "I didn't quite catch that. Could you please repeat your answer and clarify your technical explanation?");
         const clarifyQ = {
           id: `clarify-${Date.now()}`,
           category: 'Clarification',
-          question: evaluation.nextQuestion || "I didn't quite catch that. Could you please repeat or clarify your answer?",
-          questionText: evaluation.nextQuestion || "I didn't quite catch that. Could you please repeat or clarify your answer?",
+          question: clarifyText,
+          questionText: clarifyText,
           isFollowUp: true,
           isClarifyPrompt: true
         };
@@ -368,18 +372,19 @@ export default function InterviewScreen({
       const followUpText = evaluation.nextQuestion || evaluation.question;
 
       if (isFollowUpQuestion && followUpText) {
+        const sanitizedFollowUp = enforceQuestionWordCount(followUpText);
         setIsFollowUp(true);
         setFollowUpRationale(evaluation.rationale || 'Probing deeper into technical rationale');
         setFollowUpsCount((prev) => prev + 1);
         const fuQuestion = {
           id: `fu-${Date.now()}`,
           category: 'Dynamic Follow-Up',
-          question: followUpText,
-          questionText: followUpText,
+          question: sanitizedFollowUp,
+          questionText: sanitizedFollowUp,
           isFollowUp: true
         };
         setCurrentQuestion(fuQuestion);
-        speakQuestion(followUpText);
+        speakQuestion(sanitizedFollowUp);
       } else {
         setIsFollowUp(false);
         setFollowUpRationale('');
@@ -387,11 +392,12 @@ export default function InterviewScreen({
         setCurrentQuestionIndex(nextIdx);
         setQuestionsCount((prev) => prev + 1);
 
+        const endText = enforceQuestionWordCount(`Thank you very much! We covered primary topics. Do you have any final technical achievements to highlight?`);
         const nextQ = questionPool[nextIdx] || {
           id: `end-q`,
           category: 'Summary',
-          question: `Thank you ${firstName}. We have covered the primary architecture topics. Do you have any final project achievements you would like to highlight?`,
-          questionText: `Thank you ${firstName}. We have covered the primary architecture topics. Do you have any final project achievements you would like to highlight?`
+          question: endText,
+          questionText: endText
         };
 
         setCurrentQuestion(nextQ);
@@ -401,11 +407,12 @@ export default function InterviewScreen({
       console.error('Error evaluating answer:', err);
       const nextIdx = currentQuestionIndex + 1;
       setCurrentQuestionIndex(nextIdx);
+      const endText = enforceQuestionWordCount(`Thank you very much! We covered primary topics. Do you have any final technical achievements to highlight?`);
       const nextQ = questionPool[nextIdx] || {
         id: `end-q`,
         category: 'Summary',
-        question: `Thank you ${firstName}. We have covered the primary architecture topics. Do you have any final project achievements you would like to highlight?`,
-        questionText: `Thank you ${firstName}. We have covered the primary architecture topics. Do you have any final project achievements you would like to highlight?`
+        question: endText,
+        questionText: endText
       };
       setCurrentQuestion(nextQ);
       speakQuestion(getQuestionText(nextQ));
@@ -464,11 +471,12 @@ export default function InterviewScreen({
     const nextIdx = currentQuestionIndex + 1;
     setCurrentQuestionIndex(nextIdx);
     setIsFollowUp(false);
+    const endText = enforceQuestionWordCount(`Thank you very much! We covered primary topics. Do you have any final technical achievements to highlight?`);
     const nextQ = questionPool[nextIdx] || {
       id: `end-q`,
       category: 'Summary',
-      question: `Thank you ${firstName}. We have covered the primary architecture topics. Do you have any final project achievements you would like to highlight?`,
-      questionText: `Thank you ${firstName}. We have covered the primary architecture topics. Do you have any final project achievements you would like to highlight?`
+      question: endText,
+      questionText: endText
     };
     setCurrentQuestion(nextQ);
     speakQuestion(getQuestionText(nextQ));
