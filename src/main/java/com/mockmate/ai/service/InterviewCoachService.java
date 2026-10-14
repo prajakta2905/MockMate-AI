@@ -118,8 +118,8 @@ public class InterviewCoachService {
         int count = words.length;
 
         if (count >= 15 && count <= 18) {
-            if (!clean.endsWith("?")) clean += "?";
-            return clean;
+            clean = clean.replaceAll("[.!?]+$", "");
+            return clean + "?";
         }
 
         if (count > 18) {
@@ -128,7 +128,7 @@ public class InterviewCoachService {
                 if (i > 0) sb.append(" ");
                 sb.append(words[i]);
             }
-            String trimmed = sb.toString().replaceAll("[,;:\\-\\s]+$", "");
+            String trimmed = sb.toString().replaceAll("[,;:!?.\\-\\s]+$", "");
             return trimmed + "?";
         }
 
@@ -144,8 +144,8 @@ public class InterviewCoachService {
         String combined = (prefix + clean).replaceAll("\\s+", " ").trim();
         String[] newWords = combined.split(" ");
         if (newWords.length >= 15 && newWords.length <= 18) {
-            if (!combined.endsWith("?")) combined += "?";
-            return combined;
+            combined = combined.replaceAll("[.!?]+$", "");
+            return combined + "?";
         }
 
         if (newWords.length > 18) {
@@ -154,11 +154,11 @@ public class InterviewCoachService {
                 if (i > 0) sb.append(" ");
                 sb.append(newWords[i]);
             }
-            return sb.toString().replaceAll("[,;:\\-\\s]+$", "") + "?";
+            return sb.toString().replaceAll("[,;:!?.\\-\\s]+$", "") + "?";
         }
 
         while (combined.split(" ").length < 15) {
-            combined = combined.replace("?", "") + " in detail?";
+            combined = combined.replaceAll("[.!?]+$", "") + " in detail?";
         }
         String[] finalWords = combined.split(" ");
         if (finalWords.length > 18) {
@@ -167,10 +167,10 @@ public class InterviewCoachService {
                 if (i > 0) sb.append(" ");
                 sb.append(finalWords[i]);
             }
-            return sb.toString().replaceAll("[,;:\\-\\s]+$", "") + "?";
+            return sb.toString().replaceAll("[,;:!?.\\-\\s]+$", "") + "?";
         }
-        if (!combined.endsWith("?")) combined += "?";
-        return combined;
+        combined = combined.replaceAll("[.!?]+$", "");
+        return combined + "?";
     }
 
     private QuestionPool parseQuestionPoolJson(String json) {

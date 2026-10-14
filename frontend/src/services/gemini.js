@@ -273,12 +273,12 @@ export function enforceQuestionWordCount(question) {
   const count = words.length;
 
   if (count >= 15 && count <= 18) {
-    if (!clean.endsWith('?')) clean += '?';
+    clean = clean.replace(/[.!?]+$/, '') + '?';
     return clean;
   }
 
   if (count > 18) {
-    const trimmed = words.slice(0, 17).join(' ').replace(/[,;:\-\s]+$/, '');
+    const trimmed = words.slice(0, 17).join(' ').replace(/[,;:!?.\\-\s]+$/, '');
     return trimmed + '?';
   }
 
@@ -293,23 +293,23 @@ export function enforceQuestionWordCount(question) {
   clean = (prefix + clean).replace(/\s+/g, ' ').trim();
   let newWords = clean.split(' ').filter(Boolean);
   if (newWords.length >= 15 && newWords.length <= 18) {
-    if (!clean.endsWith('?')) clean += '?';
+    clean = clean.replace(/[.!?]+$/, '') + '?';
     return clean;
   }
 
   if (newWords.length > 18) {
-    const trimmed = newWords.slice(0, 16).join(' ').replace(/[,;:\-\s]+$/, '');
+    const trimmed = newWords.slice(0, 16).join(' ').replace(/[,;:!?.\\-\s]+$/, '');
     return trimmed + '?';
   }
 
   while (clean.split(' ').filter(Boolean).length < 15) {
-    clean = clean.replace(/\?$/, '') + ' in detail?';
+    clean = clean.replace(/[.!?]+$/, '') + ' in detail?';
   }
   const finalWords = clean.split(' ').filter(Boolean);
   if (finalWords.length > 18) {
-    return finalWords.slice(0, 16).join(' ').replace(/[,;:\-\s]+$/, '') + '?';
+    return finalWords.slice(0, 16).join(' ').replace(/[,;:!?.\\-\s]+$/, '') + '?';
   }
-  if (!clean.endsWith('?')) clean += '?';
+  clean = clean.replace(/[.!?]+$/, '') + '?';
   return clean;
 }
 
