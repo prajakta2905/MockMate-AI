@@ -24,7 +24,7 @@ class InterviewSessionStoreTest {
         assertNotNull(sessionStore.getProfile());
 
         CandidateProfile newProfile = new CandidateProfile("Prajakta Gudadhe", "Full Stack Java Developer");
-        newProfile.getExtractedSkills().add("Java 17");
+        newProfile.getExtractedSkills().add("Java 21");
         newProfile.getExtractedSkills().add("Spring Boot 3");
 
         sessionStore.setProfile(newProfile);
