@@ -45,10 +45,10 @@ public class KeepAliveService {
     }
 
     /**
-     * Executes every 10 minutes (600,000 ms), with a 1-minute initial delay after startup.
+     * Executes every 8 minutes (480,000 ms), with a 1-minute initial delay after startup.
      * Prevents free-tier containers from hibernating due to inactivity.
      */
-    @Scheduled(fixedRate = 600000, initialDelay = 60000)
+    @Scheduled(fixedRate = 480000, initialDelay = 60000)
     public void pingSelf() {
         if (!enabled) {
             log.debug("Keep-alive self-ping is disabled.");
