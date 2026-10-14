@@ -4,12 +4,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.io.File;
 import java.nio.file.Files;
 import java.util.List;
 
 @SpringBootApplication
+@EnableScheduling
 public class MockMateAiApplication {
     private static final Logger log = LoggerFactory.getLogger(MockMateAiApplication.class);
 

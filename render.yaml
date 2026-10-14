@@ -5,8 +5,12 @@ services:
     plan: free
     region: oregon
     dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/keep-alive
     envVars:
       - key: PORT
         value: 8080
       - key: JAVA_OPTS
         value: "-Xmx384m -Xms128m -XX:+UseG1GC"
+      - key: KEEP_ALIVE_ENABLED
+        value: "true"
+
