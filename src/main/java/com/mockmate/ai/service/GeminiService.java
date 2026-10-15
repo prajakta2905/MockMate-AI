@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Enterprise Google Gemini Inference Service.
+ * Google Gemini Inference Service.
  * Protects Google Gemini API credentials by executing all requests server-side.
  */
 @Service
@@ -28,7 +28,7 @@ public class GeminiService {
     @Value("${mockmate.ai.gemini-api-key:}")
     private String geminiApiKey;
 
-    @Value("${mockmate.ai.gemini-model:gemini-1.5-flash}")
+    @Value("${mockmate.ai.gemini-model:gemini-2.0-flash}")
     private String model;
 
     private final HttpClient httpClient;
@@ -67,9 +67,21 @@ public class GeminiService {
             return null;
         }
 
+        String targetModel = (modelOverride != null && !modelOverride.isBlank()) ? modelOverride : this.model;
+        String result = executeGeminiRequest(targetModel, prompt, systemInstruction, jsonMode, temperature, effectiveKey);
+
+        // Fallback to gemini-1.5-flash if primary model fails
+        if (result == null && !targetModel.equals("gemini-1.5-flash")) {
+            log.info("Primary Gemini model '{}' failed, trying fallback 'gemini-1.5-flash'", targetModel);
+            result = executeGeminiRequest("gemini-1.5-flash", prompt, systemInstruction, jsonMode, temperature, effectiveKey);
+        }
+        return result;
+    }
+
+    private String executeGeminiRequest(String targetModel, String prompt, String systemInstruction, boolean jsonMode, Double temperature, String effectiveKey) {
         try {
-            String targetModel = (modelOverride != null && !modelOverride.isBlank()) ? modelOverride : this.model;
-            String url = GEMINI_API_BASE + targetModel + ":generateContent?key=" + effectiveKey.trim();
+            // Keep API key strictly in the HTTP header (x-goog-api-key) to avoid URL query parameter leakage
+            String url = GEMINI_API_BASE + targetModel + ":generateContent";
 
             String fullText = (systemInstruction != null && !systemInstruction.isBlank())
                     ? systemInstruction + "\n\n" + prompt
@@ -106,10 +118,10 @@ public class GeminiService {
                 JsonNode candidate = root.path("candidates").path(0).path("content").path("parts").path(0).path("text");
                 return candidate.asText();
             } else {
-                log.warn("Gemini API error HTTP {}: {}", response.statusCode(), response.body());
+                log.warn("Gemini API ({}) error HTTP {}: {}", targetModel, response.statusCode(), response.body());
             }
         } catch (Exception e) {
-            log.error("Gemini call failed: {}", e.getMessage());
+            log.error("Gemini call ({}) failed: {}", targetModel, e.getMessage());
         }
         return null;
     }

@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Enterprise GroqCloud Ultra-Low Latency Inference Service.
+ * GroqCloud Low Latency Inference Service.
  * Manages secret API keys entirely on the backend to prevent client-side credential exposure.
  */
 @Service

@@ -29,6 +29,11 @@ yarn-debug.log*
 yarn-error.log*
 tsconfig.tsbuildinfo
 
+# Persistent Database Storage (Local/Container)
+data/
+*.mv.db
+*.trace.db
+
 # IDE & Editor Configs
 .vscode/
 .idea/

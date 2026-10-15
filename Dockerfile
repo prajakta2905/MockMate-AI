@@ -31,8 +31,8 @@ RUN mvn clean package -DskipTests
 FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 
-# Non-root user for security best practices
-RUN useradd -m -u 1001 mockmateuser && chown -R mockmateuser:mockmateuser /app
+# Non-root user for security best practices & persistent data directory
+RUN useradd -m -u 1001 mockmateuser && mkdir -p /app/data && chown -R mockmateuser:mockmateuser /app
 USER mockmateuser
 
 COPY --from=backend-builder --chown=mockmateuser:mockmateuser /app/target/mockmate-java-1.0.0.jar app.jar

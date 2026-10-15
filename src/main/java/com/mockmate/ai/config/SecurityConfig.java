@@ -7,7 +7,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 /**
  * Security Configuration for MockMate AI.
- * Provides an enterprise-grade BCrypt password hashing bean with strength factor 12.
+ * Provides a BCrypt password hashing bean with strength factor 12.
  */
 @Configuration
 public class SecurityConfig {
