@@ -4,7 +4,7 @@
  * Provides automatic fallback to browser services if the Java backend is not running.
  */
 
-const JAVA_BACKEND_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_JAVA_BACKEND_URL) || 
+export const JAVA_BACKEND_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_JAVA_BACKEND_URL) || 
   (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' ? '' : 'http://localhost:8080');
 
 let isBackendReachable = null;
@@ -247,3 +247,69 @@ export async function saveHistoryToJavaBackend(historyData) {
   }
   return null;
 }
+
+/**
+ * Checks AI configuration status on Java Spring Boot backend
+ */
+export async function checkAiProxyStatus() {
+  try {
+    const res = await fetch(`${JAVA_BACKEND_URL}/api/ai/status`);
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (e) {
+    // backend offline or unreachable
+  }
+  return { groqConfigured: false, geminiConfigured: false };
+}
+
+/**
+ * Proxy Groq AI call through Spring Boot backend (protects API keys server-side)
+ */
+export async function callGroqViaBackend({ prompt, systemInstruction = '', model = 'qwen/qwen3.8-27b', temperature = 0.85, jsonMode = true, apiKey = null }) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 25000);
+  try {
+    const res = await fetch(`${JAVA_BACKEND_URL}/api/ai/groq`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, systemInstruction, model, temperature, jsonMode, apiKey }),
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Backend Groq Error: HTTP ${res.status}`);
+    }
+    return await res.json();
+  } catch (err) {
+    clearTimeout(timeoutId);
+    throw err;
+  }
+}
+
+/**
+ * Proxy Gemini AI call through Spring Boot backend (protects API keys server-side)
+ */
+export async function callGeminiViaBackend({ prompt, systemInstruction = '', model = 'gemini-2.5-flash', temperature = 0.85, jsonMode = true, apiKey = null }) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 25000);
+  try {
+    const res = await fetch(`${JAVA_BACKEND_URL}/api/ai/gemini`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, systemInstruction, model, temperature, jsonMode, apiKey }),
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Backend Gemini Error: HTTP ${res.status}`);
+    }
+    return await res.json();
+  } catch (err) {
+    clearTimeout(timeoutId);
+    throw err;
+  }
+}
+

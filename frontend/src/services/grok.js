@@ -1,4 +1,5 @@
 import { enforceQuestionWordCount } from './gemini';
+import { evaluateAnswerWithJavaBackend } from './javaBackendService';
 
 export const getGrokApiKey = () => {
   const fromMeta = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GROK_API_KEY) || '';
@@ -159,61 +160,78 @@ export async function evaluateAnswerAndGenerateNextQuestion({
 
   const apiKey = getGrokApiKey();
 
-  // 1. Live Ultra-Fast AI Evaluation (GroqCloud / xAI)
-  if (apiKey) {
-    try {
-      let evaluation = null;
-      if (apiKey.startsWith('gsk_')) {
-        // GroqCloud API (Ultra-low latency Qwen 3.8 / GPT-OSS 20B)
-        evaluation = await callGroqCloudApi({
-          currentQuestion,
-          candidateAnswer,
-          conversationHistory,
-          questionPool,
-          currentQuestionIndex,
-          targetRole,
-          apiKey,
-          resume,
-          lastWasFollowUp
-        });
-      } else {
-        // xAI Grok API
-        evaluation = await callXaiGrokApi({
-          currentQuestion,
-          candidateAnswer,
-          conversationHistory,
-          questionPool,
-          currentQuestionIndex,
-          targetRole,
-          apiKey,
-          resume,
-          lastWasFollowUp
-        });
-      }
-
-      if (evaluation && (evaluation.nextQuestion || evaluation.action)) {
-        // Natural progression guarantees:
-        // Rule A: Never ask a follow-up on Question 0 (Warmup) - move directly to Question 1/2
-        // Rule B: Never ask 2 consecutive follow-ups - after 1 follow-up, advance to next main question
-        // Rule C: Never override previous, repeat, or clarify navigation commands
-        const isClarifyOrNav = evaluation.action === 'previous' || 
-          evaluation.action === 'repeat' || 
-          evaluation.action === 'clarify' ||
-          evaluation.nextQuestion?.toLowerCase().includes("didn't quite catch") ||
-          evaluation.nextQuestion?.toLowerCase().includes("catch that");
-
-        if ((currentQuestionIndex === 0 || lastWasFollowUp) && !isClarifyOrNav) {
-          evaluation.isFollowUp = false;
-          evaluation.action = 'next';
-        }
-        return evaluation;
-      }
-    } catch (err) {
-      console.warn('Groq/Grok API error, transitioning smoothly to smart engine:', err);
+  // 1. Live Ultra-Fast AI Evaluation (Java Backend Groq Proxy / GroqCloud)
+  try {
+    let evaluation = null;
+    if (!apiKey || apiKey.startsWith('gsk_')) {
+      // Groq Proxy via Java backend (server-side keys, with optional custom key override)
+      evaluation = await callGroqCloudApi({
+        currentQuestion,
+        candidateAnswer,
+        conversationHistory,
+        questionPool,
+        currentQuestionIndex,
+        targetRole,
+        apiKey,
+        resume,
+        lastWasFollowUp
+      });
+    } else {
+      // xAI Grok API (only if user provided an xAI custom key)
+      evaluation = await callXaiGrokApi({
+        currentQuestion,
+        candidateAnswer,
+        conversationHistory,
+        questionPool,
+        currentQuestionIndex,
+        targetRole,
+        apiKey,
+        resume,
+        lastWasFollowUp
+      });
     }
+
+    if (evaluation && (evaluation.nextQuestion || evaluation.action)) {
+      // Natural progression guarantees:
+      // Rule A: Never ask a follow-up on Question 0 (Warmup) - move directly to Question 1/2
+      // Rule B: Never ask 2 consecutive follow-ups - after 1 follow-up, advance to next main question
+      // Rule C: Never override previous, repeat, or clarify navigation commands
+      const isClarifyOrNav = evaluation.action === 'previous' || 
+        evaluation.action === 'repeat' || 
+        evaluation.action === 'clarify' ||
+        evaluation.nextQuestion?.toLowerCase().includes("didn't quite catch") ||
+        evaluation.nextQuestion?.toLowerCase().includes("catch that");
+
+      if ((currentQuestionIndex === 0 || lastWasFollowUp) && !isClarifyOrNav) {
+        evaluation.isFollowUp = false;
+        evaluation.action = 'next';
+      }
+      return evaluation;
+    }
+  } catch (err) {
+    console.warn('[AI Evaluation] Groq proxy failed or skipped, trying Java interview coach:', err.message);
   }
 
-  // 2. Intelligent local conversational follow-up engine (zero-latency, smooth progression)
+  // 2. Secondary: Java Spring Boot /api/interview/evaluate-answer
+  try {
+    const backendEval = await evaluateAnswerWithJavaBackend(currentQuestion, candidateAnswer, targetRole);
+    if (backendEval?.success && backendEval.nextQuestion) {
+      const isClarifyOrNav = backendEval.action === 'previous' || 
+        backendEval.action === 'repeat' || 
+        backendEval.action === 'clarify';
+
+      return {
+        action: (currentQuestionIndex === 0 || lastWasFollowUp) && !isClarifyOrNav ? 'next' : (backendEval.action || 'next'),
+        isFollowUp: (currentQuestionIndex === 0 || lastWasFollowUp) && !isClarifyOrNav ? false : (backendEval.isFollowUp !== false),
+        nextQuestion: enforceQuestionWordCount(backendEval.nextQuestion),
+        rationale: backendEval.rationale || 'Evaluation generated by Java backend AI coach'
+      };
+    }
+  } catch (backendErr) {
+    console.warn('[AI Evaluation] Java backend coach offline:', backendErr.message);
+  }
+
+  // 3. Intelligent local conversational follow-up engine (zero-latency, smooth progression)
   return generateIntelligentFollowUpLocal({
     currentQuestion,
     candidateAnswer,
@@ -226,7 +244,8 @@ export async function evaluateAnswerAndGenerateNextQuestion({
 }
 
 /**
- * GroqCloud API implementation (https://api.groq.com/openai/v1/chat/completions)
+ * GroqCloud API implementation
+ * Prioritizes Java Spring Boot backend proxy so API keys stay 100% server-side.
  */
 async function callGroqCloudApi({
   currentQuestion,
@@ -239,8 +258,8 @@ async function callGroqCloudApi({
   resume,
   lastWasFollowUp = false
 }) {
-  const endpoint = 'https://api.groq.com/openai/v1/chat/completions';
-  const candidateFirstName = resume?.name?.split(' ')?.[0] || 'there';
+  const backendUrl = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_JAVA_BACKEND_URL) || 
+    (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' ? '' : 'http://localhost:8080');
 
   const systemPrompt = `You are a concise, sharp technical interviewer conducting a live voice interview for a ${targetRole} position.
 CRITICAL RULES FOR QUESTIONS:
@@ -277,6 +296,67 @@ ${lastWasFollowUp ? 'MANDATORY: Candidate has already answered a follow-up. You 
 Decide whether to ask a follow-up probe on their answer or move forward. Return strictly valid JSON.
 `;
 
+  // 1. Primary: Route via Java Spring Boot Backend (Server-side API keys, credentials NEVER exposed in browser)
+  try {
+    const proxyController = new AbortController();
+    const proxyTimeoutId = setTimeout(() => proxyController.abort(), 15000);
+    const proxyRes = await fetch(`${backendUrl}/api/ai/groq`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt: userPrompt,
+        systemInstruction: systemPrompt,
+        model: 'qwen/qwen3.8-27b',
+        temperature: 0.3,
+        jsonMode: true,
+        apiKey: apiKey || null
+      }),
+      signal: proxyController.signal
+    });
+    clearTimeout(proxyTimeoutId);
+
+    if (proxyRes.ok) {
+      const data = await proxyRes.json();
+      if (data.success && data.content) {
+        let parsed = null;
+        try {
+          parsed = JSON.parse(data.content);
+        } catch {
+          const match = data.content.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+          if (match) parsed = JSON.parse(match[0]);
+        }
+
+        if (parsed) {
+          const isClarifyOrNav = parsed.action === 'previous' || 
+            parsed.action === 'repeat' || 
+            parsed.action === 'clarify' ||
+            parsed.nextQuestion?.toLowerCase().includes("didn't quite catch") ||
+            parsed.nextQuestion?.toLowerCase().includes("catch that");
+
+          if ((currentQuestionIndex === 0 || lastWasFollowUp) && !isClarifyOrNav) {
+            parsed.isFollowUp = false;
+            parsed.action = 'next';
+            if (!parsed.nextQuestion || parsed.nextQuestion.trim().length < 5) {
+              parsed.nextQuestion = nextPlannedQ;
+            }
+          }
+          if (parsed.nextQuestion && !isClarifyOrNav) {
+            parsed.nextQuestion = enforceQuestionWordCount(parsed.nextQuestion);
+          }
+          return parsed;
+        }
+      }
+    }
+  } catch (proxyErr) {
+    console.warn('[AI Proxy] Backend Groq evaluation call offline or failed, attempting direct fallback:', proxyErr.message);
+  }
+
+  // 2. Direct client fallback (Only if user has manually provided a client-side key)
+  if (!apiKey || !apiKey.startsWith('gsk_')) {
+    throw new Error('NO_GROQ_KEY_AND_BACKEND_OFFLINE');
+  }
+
+  const endpoint = 'https://api.groq.com/openai/v1/chat/completions';
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
 

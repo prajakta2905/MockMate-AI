@@ -206,6 +206,10 @@ public class InterviewApiController {
 
         result.put("feedback", followUp);
         result.put("nextFollowUp", followUp);
+        result.put("nextQuestion", followUp);
+        result.put("action", "next");
+        result.put("isFollowUp", true);
+        result.put("rationale", "Probing deeper into technical rationale and system trade-offs");
         return ResponseEntity.ok(result);
     }
 

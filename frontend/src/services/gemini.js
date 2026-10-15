@@ -51,9 +51,48 @@ export function getCandidateFirstName(name) {
 
 /**
  * Call Groq Cloud API for ultra-fast and reliable JSON extraction
+ * Prioritizes Java Spring Boot backend proxy so API keys stay 100% server-side.
  */
 async function callGroqJson(prompt, systemInstruction = '', temperature = 0.85) {
-  const grokApiKey = getGrokApiKey();
+  const backendUrl = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_JAVA_BACKEND_URL) || 
+    (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' ? '' : 'http://localhost:8080');
+  const customKey = getGrokApiKey();
+
+  // 1. Primary: Route via Java Spring Boot Backend (Server-side API keys, credentials NEVER exposed in browser)
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
+    const res = await fetch(`${backendUrl}/api/ai/groq`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt,
+        systemInstruction,
+        temperature,
+        jsonMode: true,
+        apiKey: customKey || null
+      }),
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.content) {
+        try {
+          return JSON.parse(data.content);
+        } catch {
+          const jsonMatch = data.content.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+          if (jsonMatch) return JSON.parse(jsonMatch[0]);
+        }
+      }
+    }
+  } catch (proxyErr) {
+    console.warn('[AI Proxy] Backend Groq call offline or failed, attempting client fallback:', proxyErr.message);
+  }
+
+  // 2. Direct client fallback (Only if user has manually provided a client-side key)
+  const grokApiKey = customKey;
   if (!grokApiKey || !grokApiKey.startsWith('gsk_')) {
     throw new Error('NO_GROQ_KEY');
   }
@@ -111,9 +150,48 @@ async function callGroqJson(prompt, systemInstruction = '', temperature = 0.85) 
 
 /**
  * Call Gemini API endpoint with JSON prompt
+ * Prioritizes Java Spring Boot backend proxy so Gemini keys never leak in URL parameters.
  */
 async function callGemini(prompt, systemInstruction = '', apiKeyOverride = null, temperature = 0.85) {
-  const apiKey = apiKeyOverride || getGeminiApiKey();
+  const backendUrl = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_JAVA_BACKEND_URL) || 
+    (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' ? '' : 'http://localhost:8080');
+  const customKey = apiKeyOverride || getGeminiApiKey();
+
+  // 1. Primary: Route via Java Spring Boot Backend (Server-side API keys, URL never exposes key query params)
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
+    const res = await fetch(`${backendUrl}/api/ai/gemini`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt,
+        systemInstruction,
+        temperature,
+        jsonMode: true,
+        apiKey: customKey || null
+      }),
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.content) {
+        try {
+          return JSON.parse(data.content);
+        } catch {
+          const jsonMatch = data.content.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+          if (jsonMatch) return JSON.parse(jsonMatch[0]);
+        }
+      }
+    }
+  } catch (proxyErr) {
+    console.warn('[AI Proxy] Backend Gemini call offline or failed, attempting client fallback:', proxyErr.message);
+  }
+
+  // 2. Direct client fallback (Only if client key is explicitly configured)
+  const apiKey = customKey;
   if (!apiKey) {
     throw new Error('NO_API_KEY');
   }

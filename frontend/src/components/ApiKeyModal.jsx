@@ -1,18 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { X, Key, Sparkles, CheckCircle2, ShieldAlert, ExternalLink, Zap } from 'lucide-react';
+import { X, Key, Sparkles, CheckCircle2, ShieldCheck, ExternalLink, Zap } from 'lucide-react';
 import { getGeminiApiKey, setGeminiApiKey } from '../services/gemini';
 import { getGrokApiKey, setGrokApiKey } from '../services/grok';
+import { checkAiProxyStatus } from '../services/javaBackendService';
 
 export default function ApiKeyModal({ isOpen, onClose }) {
   const [geminiKey, setGemini] = useState('');
   const [grokKey, setGrok] = useState('');
   const [isSaved, setIsSaved] = useState(false);
+  const [serverStatus, setServerStatus] = useState({ groqConfigured: false, geminiConfigured: false });
 
   useEffect(() => {
     if (isOpen) {
       setGemini(getGeminiApiKey());
       setGrok(getGrokApiKey());
       setIsSaved(false);
+      checkAiProxyStatus().then(status => {
+        if (status) setServerStatus(status);
+      });
     }
   }, [isOpen]);
 
@@ -50,8 +55,8 @@ export default function ApiKeyModal({ isOpen, onClose }) {
               <Key className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-gray-900">API Credentials & Keys</h3>
-              <p className="text-xs text-gray-500">Connected to Gemini API & GroqCloud high-speed inference</p>
+              <h3 className="text-base font-bold text-gray-900">API Credentials & Proxy</h3>
+              <p className="text-xs text-gray-500">Secured via Java Spring Boot Backend Gateway</p>
             </div>
           </div>
           <button
@@ -64,10 +69,10 @@ export default function ApiKeyModal({ isOpen, onClose }) {
 
         <div className="space-y-4 py-4">
           {/* Info Banner */}
-          <div className="p-3 bg-[#FCF9EE] border border-[#EEDD9E]/70 rounded-xl text-xs text-[#6B4916] flex items-start gap-2.5">
-            <Sparkles className="w-4 h-4 text-[#D4AF37] shrink-0 mt-0.5" />
+          <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-start gap-2.5">
+            <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
             <div>
-              <span className="font-semibold">Live AI Ready:</span> Your keys are active for resume analysis, question generation, real-time live follow-ups, and scorecard evaluation.
+              <span className="font-semibold">Backend Proxy Active:</span> All Groq & Gemini requests are securely handled by your Java Spring Boot backend server. API keys never leak into browser URLs or client bundles. Personal keys below are strictly optional overrides.
             </div>
           </div>
 

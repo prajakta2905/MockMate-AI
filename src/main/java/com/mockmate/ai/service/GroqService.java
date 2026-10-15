@@ -16,6 +16,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Enterprise GroqCloud Ultra-Low Latency Inference Service.
+ * Manages secret API keys entirely on the backend to prevent client-side credential exposure.
+ */
 @Service
 public class GroqService {
     private static final Logger log = LoggerFactory.getLogger(GroqService.class);
@@ -53,31 +57,41 @@ public class GroqService {
         return model;
     }
 
-    /**
-     * Sends prompt request to Groq chat completions endpoint
-     */
     public String callGroq(String systemInstruction, String userMessage) {
-        if (!isConfigured()) {
+        return callGroq(systemInstruction, userMessage, false, null, null, null);
+    }
+
+    /**
+     * Enhanced overload supporting JSON mode, custom temperature, model override, and optional client key override.
+     */
+    public String callGroq(String systemInstruction, String userMessage, boolean jsonMode, Double temperature, String modelOverride, String customApiKey) {
+        String effectiveKey = (customApiKey != null && customApiKey.startsWith("gsk_")) ? customApiKey : this.groqApiKey;
+        if (effectiveKey == null || !effectiveKey.startsWith("gsk_")) {
             return null;
         }
 
-        String result = executeGroqRequest(model, systemInstruction, userMessage);
-        if (result == null && !model.equals("openai/gpt-oss-20b")) {
+        String targetModel = (modelOverride != null && !modelOverride.isBlank()) ? modelOverride : this.model;
+        String result = executeGroqRequest(targetModel, systemInstruction, userMessage, jsonMode, temperature, effectiveKey);
+        if (result == null && !targetModel.equals("openai/gpt-oss-20b")) {
             log.info("Attempting fallback Groq model openai/gpt-oss-20b");
-            result = executeGroqRequest("openai/gpt-oss-20b", systemInstruction, userMessage);
+            result = executeGroqRequest("openai/gpt-oss-20b", systemInstruction, userMessage, jsonMode, temperature, effectiveKey);
         }
         return result;
     }
 
-    private String executeGroqRequest(String targetModel, String systemInstruction, String userMessage) {
+    private String executeGroqRequest(String targetModel, String systemInstruction, String userMessage, boolean jsonMode, Double temperature, String apiKey) {
         try {
             Map<String, Object> payload = new HashMap<>();
             payload.put("model", targetModel);
             payload.put("messages", List.of(
-                    Map.of("role", "system", "content", systemInstruction),
-                    Map.of("role", "user", "content", userMessage)
+                    Map.of("role", "system", "content", systemInstruction != null ? systemInstruction : ""),
+                    Map.of("role", "user", "content", userMessage != null ? userMessage : "")
             ));
-            payload.put("temperature", 0.4);
+            payload.put("temperature", temperature != null ? temperature : 0.4);
+
+            if (jsonMode) {
+                payload.put("response_format", Map.of("type", "json_object"));
+            }
 
             String requestBody = objectMapper.writeValueAsString(payload);
 
@@ -85,7 +99,7 @@ public class GroqService {
                     .uri(URI.create(GROQ_ENDPOINT))
                     .timeout(Duration.ofSeconds(15))
                     .header("Content-Type", "application/json")
-                    .header("Authorization", "Bearer " + groqApiKey.trim())
+                    .header("Authorization", "Bearer " + apiKey.trim())
                     .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                     .build();
 
