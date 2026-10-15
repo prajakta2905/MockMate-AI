@@ -1,43 +1,76 @@
 import React, { useState } from 'react';
-import { Sparkles, Clock, Mic, Code2, Users, Shuffle, ArrowRight, UserCheck, Volume2 } from 'lucide-react';
+import { 
+  Sparkles, 
+  Clock, 
+  Mic, 
+  Code2, 
+  Users, 
+  Shuffle, 
+  ArrowRight, 
+  UserCheck, 
+  CheckCircle2, 
+  Volume2, 
+  Bot, 
+  Briefcase, 
+  Award, 
+  Compass, 
+  ShieldCheck,
+  MessageSquare
+} from 'lucide-react';
 import { cleanCandidateName } from '../services/gemini';
 import { speechService } from '../services/speechService';
 
 export default function InterviewSetup({ resume, onSetupComplete, onBack }) {
   const [interviewType, setInterviewType] = useState('mixed'); // 'technical' | 'behavioral' | 'mixed'
   const [duration, setDuration] = useState(15); // 15 | 30 | 45
-  const [interviewerPersona, setInterviewerPersona] = useState('alex'); // 'alex' | 'sophia' | 'marcus'
+  const [interviewerPersona, setInterviewerPersona] = useState('alex'); // 'alex' | 'sophia' | 'marcus' | 'dave'
   const [voiceMode, setVoiceMode] = useState('voice-to-voice'); // 'voice-to-voice' | 'voice-to-text' | 'text-to-voice'
 
   const personas = [
     {
       id: 'alex',
       name: 'Alexander',
+      role: 'Principal Systems Architect',
+      shortRole: 'Principal Architect',
       title: 'Principal Systems Architect',
-      description: 'Focuses on system tradeoffs, code clarity, and architectural depth.'
+      style: 'Rigorous & Technical',
+      description: 'System trade-offs, architecture, and code clarity.',
+      avatarBg: 'from-amber-500/20 to-amber-600/30 text-amber-700 border-amber-300/60'
     },
     {
       id: 'sophia',
       name: 'Sophia',
+      role: 'VP of Engineering',
+      shortRole: 'VP of Engineering',
       title: 'VP of Engineering & Tech Lead',
-      description: 'Conversational, balances deep technical probes with product vision.'
+      style: 'Strategic & Conversational',
+      description: 'Balances deep technical probes with product vision.',
+      avatarBg: 'from-purple-500/20 to-purple-600/30 text-purple-700 border-purple-300/60'
     },
     {
       id: 'marcus',
       name: 'Elena',
+      role: 'Head of Talent & HR',
+      shortRole: 'Head of Talent',
       title: 'Head of Talent & Engineering HR',
-      description: 'Focuses on problem-solving mindset, STAR stories, and team collaboration.'
+      style: 'STAR Stories & Culture',
+      description: 'Problem-solving mindset, STAR stories, and collaboration.',
+      avatarBg: 'from-emerald-500/20 to-emerald-600/30 text-emerald-700 border-emerald-300/60'
     },
     {
       id: 'dave',
       name: 'Dave',
+      role: 'Interview Coach',
+      shortRole: 'Interview Coach',
       title: 'Supportive Interview Coach',
-      description: 'Provides gentle guidance, hints, and acts as a mentor to help you improve.'
+      style: 'Supportive & Mentoring',
+      description: 'Gentle hints, guidance, and actionable tips.',
+      avatarBg: 'from-blue-500/20 to-blue-600/30 text-blue-700 border-blue-300/60'
     }
   ];
 
   const handleStart = () => {
-    speechService.warmup(); // Initialize TTS engine synchronously on user click to bypass mobile autoplay blocking
+    speechService.warmup(); // Synchronous warmup for audio engines
     const selectedPersona = personas.find(p => p.id === interviewerPersona) || personas[0];
     onSetupComplete({
       type: interviewType,
@@ -47,224 +80,294 @@ export default function InterviewSetup({ resume, onSetupComplete, onBack }) {
     });
   };
 
+  const selectedPersona = personas.find(p => p.id === interviewerPersona) || personas[0];
+
   return (
-    <div className="w-full max-w-5xl mx-auto relative z-10 py-4 sm:py-8 px-4 h-full flex flex-col justify-center">
-      {/* --- Premium Animated Background Elements --- */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-[3rem] z-0">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#D4AF37]/15 rounded-full blur-[120px] animate-blob"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-[#A87D1B]/15 rounded-full blur-[100px] animate-blob animation-delay-2000"></div>
-        <div className="absolute top-[30%] left-[50%] w-[30%] h-[30%] bg-emerald-500/10 rounded-full blur-[100px] animate-blob animation-delay-4000"></div>
-        
-        {/* Floating Space Particles */}
-        <div className="absolute top-20 left-10 w-2 h-2 bg-[#D4AF37]/60 rounded-full animate-float shadow-[0_0_10px_rgba(212,175,55,0.8)]"></div>
-        <div className="absolute bottom-40 right-10 w-3 h-3 bg-[#A87D1B]/50 rounded-full animate-float-delayed shadow-[0_0_15px_rgba(168,125,27,0.8)]"></div>
-        <div className="absolute top-1/2 left-4 w-1.5 h-1.5 bg-emerald-400/50 rounded-full animate-pulse-ring"></div>
-        <div className="absolute top-1/3 right-1/4 w-2 h-2 bg-white/80 rounded-full animate-float shadow-[0_0_12px_rgba(255,255,255,0.9)]"></div>
-      </div>
-
-      <div className="relative z-10 space-y-4 max-w-4xl mx-auto w-full">
-
-      
-      {/* Top Session Breadcrumb (Stagger 1) */}
-      <div className="animate-in slide-in-from-top-4 fade-in duration-700 ease-out fill-mode-both flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0 px-6 py-4 bg-white/60 backdrop-blur-xl rounded-[2rem] border border-white/80 shadow-xl shadow-gray-200/20 hover:shadow-2xl hover:bg-white/80 transition-all duration-500">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FCF9EE] to-white border border-[#EEDD9E]/50 flex items-center justify-center text-[#A87D1B] font-bold shadow-sm relative overflow-hidden group">
-            <div className="absolute inset-0 bg-[#D4AF37]/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-            <UserCheck className="w-5 h-5 relative z-10" />
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="font-extrabold text-sm text-gray-900 tracking-tight">{cleanCandidateName(resume.name)}</span>
-            <span className="text-gray-300">•</span>
-            <span className="text-sm text-gray-500 font-semibold">{resume.targetRole}</span>
-            <span className="text-[10px] uppercase tracking-wider bg-emerald-50/80 text-emerald-600 px-2.5 py-1 rounded-full font-bold border border-emerald-100/50 shadow-sm animate-pulse">
-              Verified
-            </span>
-          </div>
+    <div className="w-full max-w-5xl mx-auto px-3 sm:px-6 space-y-2.5 sm:space-y-3.5 animate-in fade-in duration-300">
+      {/* Top Header / Progress Bar */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-0.5">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#FCF9EE] text-[#855E15] border border-[#EEDD9E] shadow-2xs">
+          <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
+          Step 2 of 4 • Interview Configuration
         </div>
-        <button
-          onClick={onBack}
-          className="text-sm text-[#A87D1B] font-bold hover:text-[#8C6314] transition-colors cursor-pointer flex items-center gap-1.5"
-        >
-          <span className="group-hover:-translate-x-1 transition-transform">←</span> Change Profile
-        </button>
+
+        {/* Candidate Badge */}
+        <div className="flex items-center gap-2 bg-white px-3 py-1 rounded-full border border-gray-200/90 shadow-2xs text-xs">
+          <div className="w-5 h-5 rounded-full bg-amber-100 text-[#855E15] flex items-center justify-center font-bold text-[10px]">
+            <UserCheck className="w-3 h-3" />
+          </div>
+          <span className="font-bold text-slate-900">{cleanCandidateName(resume?.name || 'Candidate')}</span>
+          <span className="text-gray-300">•</span>
+          <span className="text-gray-500 font-medium">{resume?.targetRole || 'Software Engineer'}</span>
+          <span className="text-[10px] uppercase font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-200">
+            Verified
+          </span>
+          <button
+            onClick={onBack}
+            className="text-xs font-bold text-[#A87D1B] hover:text-[#8C6314] transition-colors ml-1 cursor-pointer"
+          >
+            Change
+          </button>
+        </div>
       </div>
 
-      {/* 2-Column Split Horizontal Setup Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6 items-stretch">
-        
-        {/* Left Column: Format & Duration (Stagger 2) */}
-        <div className="animate-in slide-in-from-bottom-8 fade-in duration-700 delay-[150ms] ease-out fill-mode-both p-4 sm:p-8 rounded-3xl sm:rounded-[2.5rem] border border-white/80 shadow-2xl shadow-gray-200/30 bg-white/70 backdrop-blur-2xl flex flex-col justify-between space-y-5 sm:space-y-10 relative overflow-hidden group hover:-translate-y-1 transition-transform duration-500">
-          {/* Subtle bg glow */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-[#EEDD9E]/10 rounded-full blur-3xl pointer-events-none group-hover:bg-[#EEDD9E]/30 group-hover:scale-125 transition-all duration-1000"></div>
+      {/* Main Luxury Console Card */}
+      <div className="bg-white rounded-2xl sm:rounded-3xl border border-[#EEDD9E]/70 shadow-lg relative overflow-hidden p-3.5 sm:p-5 space-y-3 sm:space-y-3.5 animate-in fade-in zoom-in-95 duration-200">
+        {/* Top Gold Accent Line */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#D4AF37] via-[#F3CE6D] to-[#A87D1B]" />
 
-          {/* Section 1: Type */}
-          <div className="space-y-4 relative z-10">
-            <label className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.2em] text-[#A87D1B]/80 block">
-              1. Interview Type
-              <div className="h-px bg-[#EEDD9E]/50 flex-grow ml-2"></div>
-            </label>
-            <div className="grid grid-cols-3 gap-2 sm:gap-3">
-              {[
-                { id: 'mixed', title: 'Mixed', subtitle: 'Tech + Behav', icon: Shuffle },
-                { id: 'technical', title: 'Technical', subtitle: 'Arch & Stack', icon: Code2 },
-                { id: 'behavioral', title: 'Behavioral', subtitle: 'STAR & Culture', icon: Users }
-              ].map((item) => {
-                const Icon = item.icon;
-                const isSelected = interviewType === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setInterviewType(item.id)}
-                    className={`group relative p-2 sm:p-4 rounded-2xl border text-center sm:text-left transition-all duration-500 cursor-pointer overflow-hidden flex flex-col justify-center min-h-[70px] ${
-                      isSelected
-                        ? 'bg-gradient-to-br from-[#FCF9EE] to-white border-[#D4AF37] shadow-[0_8px_25px_-5px_rgba(212,175,55,0.4)] -translate-y-1 ring-2 ring-[#D4AF37]/40 scale-[1.02]'
-                        : 'bg-white/40 border-gray-100 hover:border-[#D4AF37]/60 hover:bg-white hover:shadow-[0_8px_20px_-5px_rgba(212,175,55,0.25)] hover:-translate-y-1 hover:scale-[1.02]'
-                    }`}
-                  >
-                    {/* Selected Shine Effect */}
-                    {isSelected && <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/80 to-transparent -translate-x-full animate-[shimmer_2s_infinite]"></div>}
-                    
-                    <div className="relative z-10 flex flex-col h-full justify-center items-center sm:items-start">
-                      <Icon className={`w-5 h-5 sm:w-6 sm:h-6 mb-1 sm:mb-3 transition-all duration-300 ${isSelected ? 'text-[#D4AF37] scale-110 drop-shadow-[0_0_8px_rgba(212,175,55,0.5)]' : 'text-gray-400 group-hover:text-[#D4AF37]/80 group-hover:scale-110'}`} />
-                      <div>
-                        <p className={`font-bold text-[11px] sm:text-[14px] transition-colors leading-tight ${isSelected ? 'text-gray-900' : 'text-gray-600 group-hover:text-gray-900'}`}>{item.title}</p>
-                        <p className={`text-[9px] sm:text-[10px] mt-0.5 truncate transition-colors ${isSelected ? 'text-[#A87D1B] font-semibold' : 'text-gray-400 group-hover:text-[#A87D1B]/80'}`}>{item.subtitle}</p>
+        {/* 2-Column Split Console Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4">
+          
+          {/* Left Column (5 Cols): Interview Type & Duration */}
+          <div className="lg:col-span-5 space-y-3 sm:space-y-3.5 flex flex-col justify-between">
+            
+            {/* Section 1: Interview Type */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5 pb-1 border-b border-gray-100">
+                <div className="w-5 h-5 rounded-md bg-amber-100/70 text-[#855E15] flex items-center justify-center">
+                  <Shuffle className="w-3 h-3 text-[#A87D1B]" />
+                </div>
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-800">
+                  1. Interview Focus
+                </label>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: 'mixed', title: 'Mixed', subtitle: 'Tech + Behav', desc: 'Full 360° Assessment', icon: Shuffle },
+                  { id: 'technical', title: 'Technical', subtitle: 'Arch & Stack', desc: 'Deep Code & Systems', icon: Code2 },
+                  { id: 'behavioral', title: 'Behavioral', subtitle: 'STAR & Fit', desc: 'Culture & Situational', icon: Users }
+                ].map((item) => {
+                  const Icon = item.icon;
+                  const isSelected = interviewType === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setInterviewType(item.id)}
+                      className={`relative p-2 sm:p-2.5 rounded-xl border text-left transition-all duration-200 cursor-pointer flex flex-col justify-between min-h-[76px] ${
+                        isSelected
+                          ? 'bg-gradient-to-b from-[#FCF9EE] to-white border-[#D4AF37] shadow-sm ring-1 ring-[#D4AF37]/50'
+                          : 'bg-slate-50/60 border-slate-200/80 hover:bg-white hover:border-[#D4AF37]/50 shadow-2xs'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <Icon className={`w-4 h-4 ${isSelected ? 'text-[#A87D1B]' : 'text-gray-400'}`} />
+                        {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-[#D4AF37]" />}
                       </div>
-                    </div>
-                  </button>
-                );
-              })}
+                      <div className="mt-1">
+                        <p className={`font-bold text-xs leading-tight ${isSelected ? 'text-slate-900' : 'text-slate-700'}`}>
+                          {item.title}
+                        </p>
+                        <p className={`text-[10px] mt-0.5 leading-tight ${isSelected ? 'text-[#855E15] font-semibold' : 'text-gray-500'}`}>
+                          {item.subtitle}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Section 2: Target Duration */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5 pb-1 border-b border-gray-100">
+                <div className="w-5 h-5 rounded-md bg-amber-100/70 text-[#855E15] flex items-center justify-center">
+                  <Clock className="w-3 h-3 text-[#A87D1B]" />
+                </div>
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-800">
+                  2. Session Length
+                </label>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { mins: 15, label: '15 Min', desc: 'Screening', qCount: '~4-5 Questions' },
+                  { mins: 30, label: '30 Min', desc: 'Standard', qCount: '~8-10 Questions' },
+                  { mins: 45, label: '45 Min', desc: 'Full Mock', qCount: '~12-15 Questions' }
+                ].map((item) => {
+                  const isSelected = duration === item.mins;
+                  return (
+                    <button
+                      key={item.mins}
+                      type="button"
+                      onClick={() => setDuration(item.mins)}
+                      className={`relative p-2 sm:p-2.5 rounded-xl border text-center transition-all duration-200 cursor-pointer flex flex-col justify-between min-h-[66px] ${
+                        isSelected
+                          ? 'bg-gradient-to-b from-[#FCF9EE] to-white border-[#D4AF37] shadow-sm ring-1 ring-[#D4AF37]/50'
+                          : 'bg-slate-50/60 border-slate-200/80 hover:bg-white hover:border-[#D4AF37]/50 shadow-2xs'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <span className={`text-[10px] font-semibold ${isSelected ? 'text-[#855E15]' : 'text-gray-400'}`}>
+                          {item.desc}
+                        </span>
+                        {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-[#D4AF37]" />}
+                      </div>
+                      <div>
+                        <p className={`text-sm font-extrabold leading-tight ${isSelected ? 'text-slate-900' : 'text-slate-700'}`}>
+                          {item.label}
+                        </p>
+                        <p className={`text-[9px] mt-0.5 ${isSelected ? 'text-[#A87D1B] font-semibold' : 'text-gray-400'}`}>
+                          {item.qCount}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Live Context Prompt Tip */}
+            <div className="p-2 rounded-xl bg-amber-50/70 border border-[#EEDD9E]/60 text-[11px] text-[#855E15] flex items-center gap-2">
+              <Sparkles className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
+              <span>Questions will be tailored to your tech stack & projects.</span>
             </div>
           </div>
 
-          {/* Section 2: Duration */}
-          <div className="space-y-4 relative z-10">
-            <label className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.2em] text-[#A87D1B]/80 block">
-              2. Target Duration
-              <div className="h-px bg-[#EEDD9E]/50 flex-grow ml-2"></div>
-            </label>
-            <div className="grid grid-cols-3 gap-2 sm:gap-3">
-              {[
-                { mins: 15, label: '15 Min', desc: 'Screening' },
-                { mins: 30, label: '30 Min', desc: 'Standard' },
-                { mins: 45, label: '45 Min', desc: 'Full Mock' }
-              ].map((item) => {
-                const isSelected = duration === item.mins;
-                return (
-                  <button
-                    key={item.mins}
-                    type="button"
-                    onClick={() => setDuration(item.mins)}
-                    className={`group relative p-2 sm:p-3 rounded-2xl text-center border transition-all duration-500 cursor-pointer overflow-hidden flex flex-col justify-center min-h-[60px] sm:min-h-[80px] ${
-                      isSelected
-                        ? 'bg-gradient-to-br from-[#FCF9EE] to-white border-[#D4AF37] shadow-[0_8px_25px_-5px_rgba(212,175,55,0.4)] -translate-y-1 ring-2 ring-[#D4AF37]/40 scale-[1.02]'
-                        : 'bg-white/40 border-gray-100 hover:border-[#D4AF37]/60 hover:bg-white hover:shadow-[0_8px_20px_-5px_rgba(212,175,55,0.25)] hover:-translate-y-1 hover:scale-[1.02]'
-                    }`}
-                  >
-                    {isSelected && <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/80 to-transparent -translate-x-full animate-[shimmer_2s_infinite]"></div>}
-                    <div className="relative z-10">
-                      <p className={`text-[12px] sm:text-[14px] font-extrabold transition-colors duration-300 ${isSelected ? 'text-gray-900 drop-shadow-sm' : 'text-gray-500 group-hover:text-gray-800'}`}>{item.label}</p>
-                      <p className={`text-[9px] sm:text-[10px] mt-0.5 sm:mt-1 transition-colors duration-300 leading-tight ${isSelected ? 'text-[#A87D1B] font-bold' : 'text-gray-400 group-hover:text-[#A87D1B]/80'}`}>{item.desc}</p>
-                    </div>
-                  </button>
-                );
-              })}
+          {/* Right Column (7 Cols): Interviewer Persona & Interaction Mode */}
+          <div className="lg:col-span-7 space-y-3 sm:space-y-3.5 flex flex-col justify-between">
+            
+            {/* Section 3: Interviewer Persona */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between pb-1 border-b border-gray-100">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-5 h-5 rounded-md bg-amber-100/70 text-[#855E15] flex items-center justify-center">
+                    <Bot className="w-3 h-3 text-[#A87D1B]" />
+                  </div>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-800">
+                    3. AI Interviewer Persona
+                  </label>
+                </div>
+                <span className="text-[10px] font-medium text-gray-400">
+                  Select personality & probe style
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                {personas.map((p) => {
+                  const isSelected = interviewerPersona === p.id;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setInterviewerPersona(p.id)}
+                      className={`relative p-2 sm:p-2.5 rounded-xl border text-left transition-all duration-200 cursor-pointer flex flex-col justify-between min-h-[72px] ${
+                        isSelected
+                          ? 'bg-gradient-to-b from-[#FCF9EE] to-white border-[#D4AF37] shadow-sm ring-1 ring-[#D4AF37]/50'
+                          : 'bg-slate-50/60 border-slate-200/80 hover:bg-white hover:border-[#D4AF37]/50 shadow-2xs'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`w-5 h-5 rounded-md border flex items-center justify-center text-[10px] font-bold bg-gradient-to-br ${p.avatarBg}`}>
+                            {p.name[0]}
+                          </span>
+                          <span className={`font-bold text-xs leading-tight ${isSelected ? 'text-slate-900' : 'text-slate-800'}`}>
+                            {p.name}
+                          </span>
+                        </div>
+                        {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />}
+                      </div>
+
+                      <div className="mt-1">
+                        <p className={`text-[10px] font-semibold leading-tight ${isSelected ? 'text-[#855E15]' : 'text-gray-500'}`}>
+                          {p.shortRole}
+                        </p>
+                        <p className={`text-[9px] mt-0.5 truncate ${isSelected ? 'text-slate-600' : 'text-gray-400'}`}>
+                          {p.description}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Section 4: Interaction Mode */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5 pb-1 border-b border-gray-100">
+                <div className="w-5 h-5 rounded-md bg-amber-100/70 text-[#855E15] flex items-center justify-center">
+                  <Mic className="w-3 h-3 text-[#A87D1B]" />
+                </div>
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-800">
+                  4. Audio & Interaction Mode
+                </label>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: 'voice-to-voice', title: 'Voice ↔ Voice', desc: 'Realtime Speech', badge: 'Recommended', icon: Volume2 },
+                  { id: 'voice-to-text', title: 'Voice → Text', desc: 'Live Transcript', badge: 'Standard', icon: MessageSquare },
+                  { id: 'text-to-voice', title: 'Text → Voice', desc: 'Type & Listen', badge: 'Quiet Mode', icon: Mic }
+                ].map((mode) => {
+                  const Icon = mode.icon;
+                  const isSelected = voiceMode === mode.id;
+                  return (
+                    <button
+                      key={mode.id}
+                      type="button"
+                      onClick={() => setVoiceMode(mode.id)}
+                      className={`relative p-2 sm:p-2.5 rounded-xl border text-left transition-all duration-200 cursor-pointer flex flex-col justify-between min-h-[66px] ${
+                        isSelected
+                          ? 'bg-gradient-to-b from-[#FCF9EE] to-white border-[#D4AF37] shadow-sm ring-1 ring-[#D4AF37]/50'
+                          : 'bg-slate-50/60 border-slate-200/80 hover:bg-white hover:border-[#D4AF37]/50 shadow-2xs'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <Icon className={`w-3.5 h-3.5 ${isSelected ? 'text-[#A87D1B]' : 'text-gray-400'}`} />
+                        {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-[#D4AF37]" />}
+                      </div>
+                      <div className="mt-1">
+                        <p className={`font-bold text-xs leading-tight ${isSelected ? 'text-slate-900' : 'text-slate-700'}`}>
+                          {mode.title}
+                        </p>
+                        <p className={`text-[10px] mt-0.5 leading-tight ${isSelected ? 'text-[#855E15] font-semibold' : 'text-gray-500'}`}>
+                          {mode.desc}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Bottom Status / Mode Info */}
+            <div className="p-2 rounded-xl bg-slate-50 border border-slate-200/70 text-[11px] text-gray-500 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>Active Persona: <strong className="text-slate-800">{selectedPersona.name}</strong> ({selectedPersona.style})</span>
+              </span>
+              <span className="text-[10px] text-[#855E15] font-semibold bg-amber-50 px-2 py-0.5 rounded-md border border-[#EEDD9E]/60">
+                {duration} Min Round
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Right Column: Persona & Mode (Stagger 3) */}
-        <div className="animate-in slide-in-from-bottom-8 fade-in duration-700 delay-[300ms] ease-out fill-mode-both p-4 sm:p-8 rounded-3xl sm:rounded-[2.5rem] border border-white/80 shadow-2xl shadow-gray-200/30 bg-white/70 backdrop-blur-2xl flex flex-col justify-between space-y-5 sm:space-y-10 relative overflow-hidden group hover:-translate-y-1 transition-transform duration-500">
-          {/* Subtle bg glow */}
-          <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#FCF9EE]/40 rounded-full blur-3xl pointer-events-none group-hover:bg-[#FCF9EE]/70 group-hover:scale-125 transition-all duration-1000"></div>
+        {/* Footer Action Row */}
+        <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-2.5 border-t border-gray-100">
+          <button
+            onClick={onBack}
+            className="text-xs font-semibold text-gray-600 hover:text-gray-900 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer"
+          >
+            ← Back to Profile
+          </button>
 
-          {/* Section 3: Persona */}
-          <div className="space-y-4 relative z-10">
-            <label className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.2em] text-[#A87D1B]/80 block">
-              3. Interviewer Persona
-              <div className="h-px bg-[#EEDD9E]/50 flex-grow ml-2"></div>
-            </label>
-            <div className="grid grid-cols-2 gap-2 sm:gap-3">
-              {personas.map((p) => {
-                const isSelected = interviewerPersona === p.id;
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setInterviewerPersona(p.id)}
-                    className={`group relative p-2 sm:p-4 rounded-2xl border text-center sm:text-left transition-all duration-500 cursor-pointer overflow-hidden min-h-[60px] sm:min-h-[90px] flex flex-col justify-center ${
-                      isSelected
-                        ? 'bg-gradient-to-br from-[#FCF9EE] to-white border-[#D4AF37] shadow-[0_8px_25px_-5px_rgba(212,175,55,0.4)] -translate-y-1 ring-2 ring-[#D4AF37]/40 scale-[1.02]'
-                        : 'bg-white/40 border-gray-100 hover:border-[#D4AF37]/60 hover:bg-white hover:shadow-[0_8px_20px_-5px_rgba(212,175,55,0.25)] hover:-translate-y-1 hover:scale-[1.02]'
-                    }`}
-                  >
-                    {isSelected && <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/80 to-transparent -translate-x-full animate-[shimmer_2s_infinite]"></div>}
-                    <div className="relative z-10">
-                      <p className={`font-extrabold text-[12px] sm:text-[14px] transition-colors duration-300 leading-tight ${isSelected ? 'text-gray-900' : 'text-gray-600 group-hover:text-gray-900'}`}>{p.name}</p>
-                      <p className={`text-[9px] sm:text-[11px] mt-0.5 sm:mt-1 font-semibold truncate transition-colors duration-300 ${isSelected ? 'text-[#D4AF37]' : 'text-gray-400 group-hover:text-[#D4AF37]/80'}`}>{p.title}</p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+          <div className="hidden sm:flex items-center gap-2 text-xs text-gray-500">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            Ready to initialize tailored questions and audio environment
           </div>
 
-          {/* Section 4: Voice Mode */}
-          <div className="space-y-4 relative z-10">
-            <label className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.2em] text-[#A87D1B]/80 block">
-              4. Interaction Mode
-              <div className="h-px bg-[#EEDD9E]/50 flex-grow ml-2"></div>
-            </label>
-            <div className="grid grid-cols-3 gap-2 sm:gap-3">
-              {[
-                { id: 'voice-to-voice', title: 'Voice ↔ Voice', desc: 'Main Demo' },
-                { id: 'voice-to-text', title: 'Voice → Text', desc: 'Transcript' },
-                { id: 'text-to-voice', title: 'Text → Voice', desc: 'Narration' }
-              ].map((mode) => {
-                const isSelected = voiceMode === mode.id;
-                return (
-                  <button
-                    key={mode.id}
-                    type="button"
-                    onClick={() => setVoiceMode(mode.id)}
-                    className={`group relative p-2 sm:p-3 rounded-2xl text-center sm:text-left border transition-all duration-500 cursor-pointer overflow-hidden min-h-[60px] sm:min-h-[80px] flex flex-col justify-center ${
-                      isSelected
-                        ? 'bg-gradient-to-br from-[#FCF9EE] to-white border-[#D4AF37] shadow-[0_8px_25px_-5px_rgba(212,175,55,0.4)] -translate-y-1 ring-2 ring-[#D4AF37]/40 scale-[1.02]'
-                        : 'bg-white/40 border-gray-100 hover:border-[#D4AF37]/60 hover:bg-white hover:shadow-[0_8px_20px_-5px_rgba(212,175,55,0.25)] hover:-translate-y-1 hover:scale-[1.02]'
-                    }`}
-                  >
-                    {isSelected && <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/80 to-transparent -translate-x-full animate-[shimmer_2s_infinite]"></div>}
-                    <div className="relative z-10">
-                      <p className={`font-bold text-[11px] sm:text-[12px] transition-colors duration-300 leading-tight ${isSelected ? 'text-gray-900' : 'text-gray-500 group-hover:text-gray-800'}`}>{mode.title}</p>
-                      <p className={`text-[9px] sm:text-[10px] mt-0.5 sm:mt-1 transition-colors duration-300 font-medium ${isSelected ? 'text-[#A87D1B]' : 'text-gray-400 group-hover:text-[#A87D1B]/80'}`}>{mode.desc}</p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <button
+            onClick={handleStart}
+            className="w-full sm:w-auto px-7 py-2.5 text-xs sm:text-sm font-bold text-white rounded-xl gold-gradient-btn flex items-center justify-center gap-2 cursor-pointer shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] transition-all"
+          >
+            <span>Initialize Interview Environment</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
         </div>
-      </div>
-
-      {/* Single Screen Action Bar (Stagger 4) */}
-      <div className="animate-in slide-in-from-bottom-4 fade-in duration-700 delay-[450ms] ease-out fill-mode-both flex flex-col-reverse sm:flex-row items-center justify-between gap-6 sm:gap-0 pt-8 px-2 relative z-10">
-        <button
-          onClick={onBack}
-          className="group text-sm font-bold text-gray-400 hover:text-gray-800 transition-colors cursor-pointer flex items-center gap-2"
-        >
-          <span className="group-hover:-translate-x-1 transition-transform">←</span> Back to Resume
-        </button>
-
-        <button
-          onClick={handleStart}
-          className="group relative px-10 py-5 text-sm font-black text-white rounded-2xl gold-gradient-btn flex items-center gap-3 cursor-pointer shadow-[0_8px_30px_-4px_rgba(212,175,55,0.5)] hover:shadow-[0_15px_40px_-5px_rgba(212,175,55,0.7)] hover:-translate-y-1.5 transition-all duration-300 overflow-hidden"
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></div>
-          <span className="relative z-10 text-[15px] tracking-wide">Initialize Interview Environment</span>
-          <ArrowRight className="w-5 h-5 relative z-10 group-hover:translate-x-1 transition-transform" />
-        </button>
-      </div>
       </div>
     </div>
   );

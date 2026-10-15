@@ -392,7 +392,7 @@ export default function InterviewScreen({
         setCurrentQuestionIndex(nextIdx);
         setQuestionsCount((prev) => prev + 1);
 
-        const endText = enforceQuestionWordCount(`Thank you very much! We covered primary topics. Do you have any final technical achievements to highlight?`);
+        const endText = enforceQuestionWordCount(`Thank you very much! We covered primary topics. Do you have any final achievements to highlight?`);
         const nextQ = questionPool[nextIdx] || {
           id: `end-q`,
           category: 'Summary',
@@ -407,7 +407,7 @@ export default function InterviewScreen({
       console.error('Error evaluating answer:', err);
       const nextIdx = currentQuestionIndex + 1;
       setCurrentQuestionIndex(nextIdx);
-      const endText = enforceQuestionWordCount(`Thank you very much! We covered primary topics. Do you have any final technical achievements to highlight?`);
+      const endText = enforceQuestionWordCount(`Thank you very much! We covered primary topics. Do you have any final achievements to highlight?`);
       const nextQ = questionPool[nextIdx] || {
         id: `end-q`,
         category: 'Summary',
@@ -471,7 +471,7 @@ export default function InterviewScreen({
     const nextIdx = currentQuestionIndex + 1;
     setCurrentQuestionIndex(nextIdx);
     setIsFollowUp(false);
-    const endText = enforceQuestionWordCount(`Thank you very much! We covered primary topics. Do you have any final technical achievements to highlight?`);
+    const endText = enforceQuestionWordCount(`Thank you very much! We covered primary topics. Do you have any final achievements to highlight?`);
     const nextQ = questionPool[nextIdx] || {
       id: `end-q`,
       category: 'Summary',
@@ -768,12 +768,12 @@ export default function InterviewScreen({
                 disabled={interviewerStatus === 'thinking'}
                 placeholder={
                   interviewerStatus === 'speaking'
-                    ? `🎧 ${setup.persona?.name || 'Interviewer'} sawaal bol rahe hain... (Boliye ya type karein to interrupt ho jayega)`
+                    ? `🎧 ${setup.persona?.name || 'Interviewer'} is speaking... (Speak or type anytime to interrupt & respond)`
                     : interviewerStatus === 'thinking'
-                    ? 'AI aapka answer evaluate kar raha hai...'
+                    ? 'AI is analyzing your response & preparing next question...'
                     : isMicListening
-                    ? '🎙️ Mic Active — Boliye, aapka answer yahan real-time type ho raha hai...'
-                    : 'Apna answer boliye ya yahan type karein (Enter press karke submit karein)...'
+                    ? '🎙️ Microphone Active — Speak naturally, your response is transcribed in real-time...'
+                    : 'Speak your answer or type here (Press Enter ↵ to submit)...'
                 }
                 rows={4}
                 className={`w-full h-full p-3 text-xs sm:text-sm border rounded-2xl outline-none transition-all resize-none ${

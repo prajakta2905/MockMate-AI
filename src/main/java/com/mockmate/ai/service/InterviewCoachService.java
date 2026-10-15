@@ -97,7 +97,7 @@ public class InterviewCoachService {
                 + "1. Generate completely unique, fresh questions. NEVER return static textbook definitions (e.g. 'What is OOP?').\n"
                 + "2. Questions must be specific scenario probes based on their skills (" + skills + ") and projects (" + projects + ").\n"
                 + "3. Vary the questions dynamically every time so that each interview feels brand new.\n"
-                + "4. STRICT WORD COUNT RULE: Every single question MUST be strictly between 15 and 18 words long. Count words carefully.\n"
+                + "4. STRICT WORD COUNT RULE: Every single question MUST be strictly between 13 and 16 words long. Count words carefully.\n"
                 + "Return JSON with format:\n"
                 + "{\n"
                 + "  \"warmup\": \"Could you introduce your technical background, core skills, and describe your proudest software engineering achievement?\",\n"
@@ -107,7 +107,7 @@ public class InterviewCoachService {
     }
 
     /**
-     * Enforces that any interview question is strictly between 15 and 18 words long.
+     * Enforces that any interview question is strictly between 13 and 16 words long.
      */
     public static String enforceWordCount(String question) {
         if (question == null || question.isBlank()) {
@@ -117,14 +117,14 @@ public class InterviewCoachService {
         String[] words = clean.split(" ");
         int count = words.length;
 
-        if (count >= 15 && count <= 18) {
+        if (count >= 13 && count <= 16) {
             clean = clean.replaceAll("[.!?]+$", "");
             return clean + "?";
         }
 
-        if (count > 18) {
+        if (count > 16) {
             StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < 17; i++) {
+            for (int i = 0; i < 15; i++) {
                 if (i > 0) sb.append(" ");
                 sb.append(words[i]);
             }
@@ -132,38 +132,38 @@ public class InterviewCoachService {
             return trimmed + "?";
         }
 
-        // count < 15: Expand gracefully
-        int needed = 16 - count;
+        // count < 13: Expand gracefully
+        int needed = 14 - count;
         String prefix;
         if (clean.toLowerCase().startsWith("how") || clean.toLowerCase().startsWith("what") || clean.toLowerCase().startsWith("why")) {
-            prefix = needed <= 4 ? "In your experience, " : "In your past production engineering work, ";
+            prefix = needed <= 3 ? "In your experience, " : "In your past production engineering work, ";
         } else {
-            prefix = needed <= 4 ? "In software engineering, " : "From an architectural design perspective, ";
+            prefix = needed <= 3 ? "In software engineering, " : "From an architectural design perspective, ";
         }
 
         String combined = (prefix + clean).replaceAll("\\s+", " ").trim();
         String[] newWords = combined.split(" ");
-        if (newWords.length >= 15 && newWords.length <= 18) {
+        if (newWords.length >= 13 && newWords.length <= 16) {
             combined = combined.replaceAll("[.!?]+$", "");
             return combined + "?";
         }
 
-        if (newWords.length > 18) {
+        if (newWords.length > 16) {
             StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < 16; i++) {
+            for (int i = 0; i < 15; i++) {
                 if (i > 0) sb.append(" ");
                 sb.append(newWords[i]);
             }
             return sb.toString().replaceAll("[,;:!?.\\-\\s]+$", "") + "?";
         }
 
-        while (combined.split(" ").length < 15) {
+        while (combined.split(" ").length < 13) {
             combined = combined.replaceAll("[.!?]+$", "") + " in detail?";
         }
         String[] finalWords = combined.split(" ");
-        if (finalWords.length > 18) {
+        if (finalWords.length > 16) {
             StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < 16; i++) {
+            for (int i = 0; i < 15; i++) {
                 if (i > 0) sb.append(" ");
                 sb.append(finalWords[i]);
             }

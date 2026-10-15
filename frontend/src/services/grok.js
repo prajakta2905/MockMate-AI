@@ -263,9 +263,9 @@ async function callGroqCloudApi({
 
   const systemPrompt = `You are a concise, sharp technical interviewer conducting a live voice interview for a ${targetRole} position.
 CRITICAL RULES FOR QUESTIONS:
-1. Every question MUST be STRICTLY between 15 and 18 words long. Never less than 15 words, never more than 18 words. Count words carefully.
+1. Every question MUST be STRICTLY between 13 and 16 words long. Never less than 13 words, never more than 16 words. Count words carefully.
 2. NO long compound sentences or multi-part questions.
-3. If asking a follow-up, probe ONE specific trade-off or technical decision sharply and briefly (15-18 words).
+3. If asking a follow-up, probe ONE specific trade-off or technical decision sharply and briefly (13-16 words).
 4. Keep the question natural and conversational so Text-to-Speech reads it quickly.
 5. UNCLEAR / GIBBERISH / UNINTELLIGIBLE ANSWER HANDLING: If the candidate's answer is unintelligible, gibberish, filler noises, random letters, or completely incomprehensible, you MUST set "action": "clarify", "isFollowUp": true, and "nextQuestion": "I did not catch that clearly. Could you please repeat your answer and explain your engineering approach?". DO NOT advance to the next question.
 6. REPEAT / PREVIOUS REQUESTS: If the candidate asks you to repeat the question, go back, or what the previous question was, you MUST return "action": "previous".
@@ -275,7 +275,7 @@ You MUST respond strictly with valid JSON with this exact schema:
 {
   "action": "next" | "previous" | "repeat" | "clarify",
   "isFollowUp": true,
-  "nextQuestion": "Spoken question strictly between fifteen and eighteen words long",
+  "nextQuestion": "Spoken question strictly between thirteen and sixteen words long",
   "rationale": "1-sentence reason"
 }`;
 
@@ -596,7 +596,7 @@ function generateIntelligentFollowUpLocal({
     if (lowerAnswer.includes('websocket') || lowerAnswer.includes('realtime') || lowerAnswer.includes('real-time')) {
       return {
         isFollowUp: true,
-        nextQuestion: enforceQuestionWordCount("When building real-time WebSockets, how did you manage connection state, heartbeat pinging, and automated reconnections at scale?"),
+        nextQuestion: enforceQuestionWordCount("When building real-time WebSockets, how did you manage connection state, heartbeat pinging, and automated reconnections?"),
         rationale: "Probing real-time infrastructure scalability."
       };
     }

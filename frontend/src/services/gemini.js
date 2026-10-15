@@ -340,7 +340,7 @@ Return strictly a JSON object with this exact schema:
  * 3. Core technical skills & frameworks (from resume)
  * 4. Project deep-dive & trade-offs (from resume)
  * 5. Production blockers & edge-case debug/**
- * Enforces that an interview question is strictly between 15 and 18 words long.
+ * Enforces that an interview question is strictly between 13 and 16 words long.
  */
 export function enforceQuestionWordCount(question) {
   if (!question || typeof question !== 'string') {
@@ -350,42 +350,42 @@ export function enforceQuestionWordCount(question) {
   const words = clean.split(' ').filter(Boolean);
   const count = words.length;
 
-  if (count >= 15 && count <= 18) {
+  if (count >= 13 && count <= 16) {
     clean = clean.replace(/[.!?]+$/, '') + '?';
     return clean;
   }
 
-  if (count > 18) {
-    const trimmed = words.slice(0, 17).join(' ').replace(/[,;:!?.\\-\s]+$/, '');
+  if (count > 16) {
+    const trimmed = words.slice(0, 15).join(' ').replace(/[,;:!?.\\-\s]+$/, '');
     return trimmed + '?';
   }
 
-  // count < 15: Expand gracefully to strictly reach 15-18 words
+  // count < 13: Expand gracefully to strictly reach 13-16 words
   let prefix = '';
   if (/^(how|what|why|when|where)/i.test(clean)) {
-    prefix = count <= 10 ? 'In your production engineering experience, ' : 'In your experience, ';
+    prefix = count <= 8 ? 'In your production engineering experience, ' : 'In your experience, ';
   } else {
-    prefix = count <= 10 ? 'From an engineering and architectural perspective, ' : 'In software engineering, ';
+    prefix = count <= 8 ? 'From an engineering and architectural perspective, ' : 'In software engineering, ';
   }
 
   clean = (prefix + clean).replace(/\s+/g, ' ').trim();
   let newWords = clean.split(' ').filter(Boolean);
-  if (newWords.length >= 15 && newWords.length <= 18) {
+  if (newWords.length >= 13 && newWords.length <= 16) {
     clean = clean.replace(/[.!?]+$/, '') + '?';
     return clean;
   }
 
-  if (newWords.length > 18) {
-    const trimmed = newWords.slice(0, 16).join(' ').replace(/[,;:!?.\\-\s]+$/, '');
+  if (newWords.length > 16) {
+    const trimmed = newWords.slice(0, 15).join(' ').replace(/[,;:!?.\\-\s]+$/, '');
     return trimmed + '?';
   }
 
-  while (clean.split(' ').filter(Boolean).length < 15) {
+  while (clean.split(' ').filter(Boolean).length < 13) {
     clean = clean.replace(/[.!?]+$/, '') + ' in detail?';
   }
   const finalWords = clean.split(' ').filter(Boolean);
-  if (finalWords.length > 18) {
-    return finalWords.slice(0, 16).join(' ').replace(/[,;:!?.\\-\s]+$/, '') + '?';
+  if (finalWords.length > 16) {
+    return finalWords.slice(0, 15).join(' ').replace(/[,;:!?.\\-\s]+$/, '') + '?';
   }
   clean = clean.replace(/[.!?]+$/, '') + '?';
   return clean;
@@ -414,16 +414,16 @@ export async function generateQuestionPoolWithGemini(parsedResume, interviewType
 
   const systemInstruction = `You are a Senior Technical Interviewer conducting a concise voice interview for ${firstName} for a ${role} position.
 CRITICAL MANDATORY RULES FOR QUESTIONS:
-- Every question MUST be STRICTLY between 15 and 18 words long. Never less than 15 words, never more than 18 words. Count words carefully.
+- Every question MUST be STRICTLY between 13 and 16 words long. Never less than 13 words, never more than 16 words. Count words carefully.
 - NO long compound sentences or multi-part questions.
 - It will be spoken out loud via Text-to-Speech, so it must be fast to hear and easy to answer.
 - You must generate COMPLETELY UNIQUE, NOVEL questions each time based on the candidate's resume. NEVER repeat previous or textbook questions.
-1. Q1 Warm-up: Quick introduction tailored to their background (15-18 words).
-2. Q2 Architecture: High-level problem approach (15-18 words).
-3. Q3 Tech Skill: Core framework question on ${skillsList.slice(0, 30) || 'their tech stack'} (15-18 words).
-4. Q4 Project: Deep dive into ${parsedResume.projects?.[0]?.name || 'their primary project'} (15-18 words).
-5. Q5 Blocker: A tough bug or technical challenge resolved (15-18 words).
-6. Q6 Behavioral: Team collaboration or disagreement (15-18 words).
+1. Q1 Warm-up: Quick introduction tailored to their background (13-16 words).
+2. Q2 Architecture: High-level problem approach (13-16 words).
+3. Q3 Tech Skill: Core framework question on ${skillsList.slice(0, 30) || 'their tech stack'} (13-16 words).
+4. Q4 Project: Deep dive into ${parsedResume.projects?.[0]?.name || 'their primary project'} (13-16 words).
+5. Q5 Blocker: A tough bug or technical challenge resolved (13-16 words).
+6. Q6 Behavioral: Team collaboration or disagreement (13-16 words).
 Return strictly pure JSON.`;
 
   // Adjust question quantities based on duration

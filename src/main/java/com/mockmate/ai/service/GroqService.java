@@ -124,7 +124,7 @@ public class GroqService {
     public String generateFollowUp(String question, String candidateAnswer, String targetRole) {
         String system = "You are an elite Tech Interview Lead at Google/Meta interviewing for the position of " + targetRole + ".\n"
                 + "Evaluate the candidate's response. If the answer is surface-level, ask a razor-sharp follow-up exploring trade-offs, edge cases, or internal mechanics.\n"
-                + "CRITICAL CONSTRAINT: Your follow-up question MUST be strictly between 15 and 18 words in length.\n"
+                + "CRITICAL CONSTRAINT: Your follow-up question MUST be strictly between 13 and 16 words in length.\n"
                 + "Keep your response conversational, concise, and encouraging yet rigorous.";
 
         String user = "Interview Question: " + question + "\nCandidate Answer: " + candidateAnswer + "\nProvide feedback and ask your follow-up:";

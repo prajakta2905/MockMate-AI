@@ -1,5 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { Sparkles, Mic, CheckCircle2, Play, RefreshCw, Cpu, Layers, Users } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  Sparkles, 
+  Mic, 
+  CheckCircle2, 
+  Play, 
+  RefreshCw, 
+  Cpu, 
+  Layers, 
+  Users, 
+  Lock, 
+  ShieldCheck, 
+  Volume2, 
+  Lightbulb, 
+  ArrowRight, 
+  UserCheck,
+  Bot
+} from 'lucide-react';
 import { generateQuestionPoolWithGemini, cleanCandidateName, enforceQuestionWordCount } from '../services/gemini';
 import { generateQuestionsWithJavaBackend } from '../services/javaBackendService';
 import { speechService } from '../services/speechService';
@@ -95,8 +111,8 @@ export default function InterviewPrep({ resume, setup, onReadyToStart, onBack })
     };
   };
 
-  // Compile full progressive questions list
-  const compiledQuestions = React.useMemo(() => {
+  // Compile full progressive questions list in memory (questions are kept confidential)
+  const compiledQuestions = useMemo(() => {
     let allQuestions = [];
 
     // 1. Warm-up introduction ("Tell me about yourself")
@@ -128,7 +144,7 @@ export default function InterviewPrep({ resume, setup, onReadyToStart, onBack })
       techPool.forEach((item) => {
         const q = normalizeQuestion(
           item,
-          'Technical',
+          'Core Technical Stack',
           `Can you walk me through your technical experience, core stack, and architectural trade-offs in past projects?`
         );
         if (q) allQuestions.push(q);
@@ -152,7 +168,7 @@ export default function InterviewPrep({ resume, setup, onReadyToStart, onBack })
       questionPool.behavioralQuestions.forEach((item) => {
         const q = normalizeQuestion(
           item,
-          'Behavioral',
+          'STAR Behavioral',
           `Tell me about a challenging technical decision you had to make and how you handled team disagreement.`
         );
         if (q) allQuestions.push(q);
@@ -182,7 +198,7 @@ export default function InterviewPrep({ resume, setup, onReadyToStart, onBack })
         },
         {
           id: 'q3-project',
-          category: 'Project Deep-Dive',
+          category: 'Project Architecture',
           question: q3,
           questionText: q3,
           focus: 'Architectural trade-offs, scalability, and system modularity',
@@ -203,175 +219,240 @@ export default function InterviewPrep({ resume, setup, onReadyToStart, onBack })
     });
   };
 
+  const interviewerName = setup?.persona?.name || 'Alexander';
+
   return (
-    <div className="max-w-4xl mx-auto space-y-4 animate-in fade-in duration-300">
-      {/* Compact Header */}
-      <div className="text-center space-y-1">
-        <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-bold bg-[#FCF9EE] text-[#855E15] border border-[#EEDD9E]">
-          <Sparkles className="w-3 h-3 text-[#D4AF37]" />
-          Step 3 • Audio Check & Question Roadmap
+    <div className="w-full max-w-5xl mx-auto px-3 sm:px-6 space-y-2.5 sm:space-y-3.5 animate-in fade-in duration-300">
+      {/* Top Header / Progress Bar */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-0.5">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#FCF9EE] text-[#855E15] border border-[#EEDD9E] shadow-2xs">
+          <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
+          Step 3 of 4 • Pre-Interview Readiness & Audio Check
         </div>
-        <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
-          Your Personalized Interview Room is Ready
-        </h2>
-        <p className="text-xs text-gray-600 max-w-md mx-auto">
-          Progressive questions tailored for <strong className="text-gray-900">{cleanCandidateName(resume.name)}</strong> ({resume.targetRole}).
-        </p>
+
+        {/* Candidate & Persona Summary Pill */}
+        <div className="flex items-center gap-2 bg-white px-3 py-1 rounded-full border border-gray-200/90 shadow-2xs text-xs">
+          <div className="w-5 h-5 rounded-full bg-amber-100 text-[#855E15] flex items-center justify-center font-bold text-[10px]">
+            <Bot className="w-3 h-3" />
+          </div>
+          <span className="font-bold text-slate-900">{interviewerName}</span>
+          <span className="text-gray-300">•</span>
+          <span className="text-gray-500 font-medium capitalize">{setup?.type || 'Mixed'} Round ({setup?.durationMinutes || 15}m)</span>
+          <span className="text-[10px] uppercase font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-200">
+            Ready
+          </span>
+          <button
+            onClick={onBack}
+            className="text-xs font-bold text-[#A87D1B] hover:text-[#8C6314] transition-colors ml-1 cursor-pointer"
+          >
+            Edit
+          </button>
+        </div>
       </div>
 
       {loading ? (
-        <div className="luxury-card p-6 rounded-3xl space-y-4 text-center">
-          <div className="w-10 h-10 mx-auto rounded-full bg-[#FCF9EE] border border-[#EEDD9E] flex items-center justify-center">
-            <RefreshCw className="w-5 h-5 text-[#D4AF37] animate-spin" />
+        <div className="bg-white rounded-2xl sm:rounded-3xl border border-[#EEDD9E]/70 shadow-lg p-8 sm:p-12 text-center space-y-4">
+          <div className="w-12 h-12 mx-auto rounded-2xl bg-[#FCF9EE] border border-[#EEDD9E] flex items-center justify-center shadow-sm">
+            <RefreshCw className="w-6 h-6 text-[#D4AF37] animate-spin" />
           </div>
           <div>
-            <h4 className="text-xs font-bold text-gray-900">Synthesizing Fresh Questions from AI...</h4>
-            <p className="text-[10px] text-gray-500">Generating unique, resume-specific probes for your projects & skills</p>
+            <h3 className="text-base sm:text-lg font-extrabold text-slate-900">
+              Synthesizing Tailored Interview Questions...
+            </h3>
+            <p className="text-xs text-gray-500 max-w-md mx-auto mt-1 font-medium">
+              Calibrating question difficulty to your tech stack, projects, and {interviewerName}'s persona style.
+            </p>
           </div>
-          <div className="w-48 mx-auto h-1.5 bg-gray-100 rounded-full overflow-hidden">
+          <div className="w-56 mx-auto h-2 bg-gray-100 rounded-full overflow-hidden shadow-inner">
             <div className="h-full bg-gradient-to-r from-[#D4AF37] to-[#E2B857] animate-pulse w-3/4 rounded-full"></div>
           </div>
         </div>
       ) : (
-        <div className="space-y-3">
-          {/* Header Action Bar with Regenerate Button */}
-          <div className="flex items-center justify-between px-1">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
-                <Layers className="w-3.5 h-3.5 text-[#D4AF37]" />
-                Tailored Questions ({compiledQuestions.length})
-              </span>
-              <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                AI Live Session
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={fetchQuestions}
-              disabled={loading}
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#FCF9EE] text-[#855E15] border border-[#EEDD9E] hover:bg-[#F6EFC8] active:scale-95 transition-all cursor-pointer shadow-2xs"
-              title="Click to generate completely new questions from AI"
-            >
-              <RefreshCw className={`w-3 h-3 text-[#D4AF37] ${loading ? 'animate-spin' : ''}`} />
-              <span>Regenerate New Questions</span>
-            </button>
-          </div>
+        /* Main Luxury Briefing Console Card */
+        <div className="bg-white rounded-2xl sm:rounded-3xl border border-[#EEDD9E]/70 shadow-lg relative overflow-hidden p-3.5 sm:p-5 space-y-3 sm:space-y-3.5 animate-in fade-in zoom-in-95 duration-200">
+          {/* Top Gold Accent Line */}
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#D4AF37] via-[#F3CE6D] to-[#A87D1B]" />
 
-          {/* Progressive Question Sequence Overview (4 cards) */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <div className="p-3 bg-white rounded-2xl border border-[#EAE6DF] shadow-2xs space-y-0.5">
-              <span className="text-[9px] uppercase font-bold text-[#A87D1B] block">Phase 1</span>
-              <p className="text-xs font-bold text-gray-900">Introduction</p>
-              <p className="text-[9px] text-gray-400 truncate">Tell me about yourself</p>
-            </div>
-
-            <div className="p-3 bg-white rounded-2xl border border-[#EAE6DF] shadow-2xs space-y-0.5">
-              <span className="text-[9px] uppercase font-bold text-blue-600 block">Phase 2</span>
-              <p className="text-xs font-bold text-gray-900">Fundamentals</p>
-              <p className="text-[9px] text-gray-400 truncate">Core approach & stack</p>
-            </div>
-
-            <div className="p-3 bg-white rounded-2xl border border-[#EAE6DF] shadow-2xs space-y-0.5">
-              <span className="text-[9px] uppercase font-bold text-emerald-600 block">Phase 3</span>
-              <p className="text-xs font-bold text-gray-900">Project Probes</p>
-              <p className="text-[9px] text-gray-400 truncate">Architecture & blockers</p>
-            </div>
-
-            <div className="p-3 bg-white rounded-2xl border border-[#EAE6DF] shadow-2xs space-y-0.5">
-              <span className="text-[9px] uppercase font-bold text-purple-600 block">Phase 4</span>
-              <p className="text-xs font-bold text-gray-900">Behavioral</p>
-              <p className="text-[9px] text-gray-400 truncate">Team & STAR scenarios</p>
-            </div>
-          </div>
-
-          {/* Question Roadmap Preview */}
-          <div className="luxury-card p-3.5 rounded-2xl bg-white border border-[#EAE6DF] space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
-                Prepared Question Flow
-              </span>
-              <span className="text-[10px] text-gray-400">
-                Adapts dynamically based on your spoken answers
-              </span>
-            </div>
-            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-              {compiledQuestions.map((q, idx) => (
-                <div key={q.id || idx} className="p-2 rounded-xl bg-gray-50 border border-gray-100 flex items-start gap-2.5 text-left hover:bg-gray-100/70 transition-colors">
-                  <span className="w-5 h-5 rounded-full bg-white border border-gray-200 text-[10px] font-bold text-gray-700 flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
-                    {idx + 1}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className="text-[9px] font-bold uppercase px-1.5 py-0.2 rounded bg-[#FCF9EE] text-[#855E15] border border-[#EEDD9E]">
-                        {q.category || 'Technical'}
-                      </span>
-                      {q.focus && (
-                        <span className="text-[9px] text-gray-400 truncate">
-                          • {q.focus}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-800 font-medium line-clamp-2">
-                      {q.question}
-                    </p>
+          {/* 2-Column Split Console Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4">
+            
+            {/* Left Column (7 Cols): Evaluation Blueprint & Sealed Questions */}
+            <div className="lg:col-span-7 space-y-2.5 flex flex-col justify-between">
+              
+              {/* Header with Secret Badge & Refresh */}
+              <div className="flex items-center justify-between pb-1.5 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-md bg-amber-100/70 text-[#855E15] flex items-center justify-center">
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#A87D1B]" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                      Evaluation Blueprint ({compiledQuestions.length} Questions)
+                    </span>
+                    <span className="ml-2 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">
+                      Sealed & Adaptive
+                    </span>
                   </div>
                 </div>
-              ))}
+
+                <button
+                  type="button"
+                  onClick={fetchQuestions}
+                  disabled={loading}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#855E15] hover:text-[#583C15] px-2 py-0.5 rounded-md bg-amber-50 hover:bg-amber-100/80 transition-colors cursor-pointer border border-[#EEDD9E]/60 shadow-2xs"
+                  title="Generate a completely new set of questions"
+                >
+                  <RefreshCw className={`w-3 h-3 text-[#D4AF37] ${loading ? 'animate-spin' : ''}`} />
+                  <span>Reshuffle</span>
+                </button>
+              </div>
+
+              {/* Notice Banner: Why questions are confidential */}
+              <div className="p-2 rounded-xl bg-amber-50/70 border border-[#EEDD9E]/60 text-[11px] text-[#855E15] flex items-center gap-2">
+                <Lock className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
+                <span>
+                  <strong>Confidential Interview Mode:</strong> Exact questions remain sealed to guarantee an authentic, unscripted evaluation.
+                </span>
+              </div>
+
+              {/* Sealed Questions Sequence List (Exact questions are hidden!) */}
+              <div className="space-y-1.5 max-h-[175px] sm:max-h-[190px] overflow-y-auto pr-1">
+                {compiledQuestions.map((q, idx) => {
+                  const categoryLabel = q.category || (idx === 0 ? 'Introduction' : idx === 1 ? 'Foundations' : idx === 2 ? 'Technical Stack' : idx === 3 ? 'Architecture' : 'Behavioral');
+                  
+                  const evaluationGoal = q.focus 
+                    ? `Focus: ${q.focus}` 
+                    : idx === 0 
+                      ? 'Career overview, communication clarity & domain expertise' 
+                      : idx === 1 
+                        ? 'Engineering mindset, systematic planning & best practices' 
+                        : idx === 2 
+                          ? 'Hands-on technical stack depth & concurrency models' 
+                          : idx === 3 
+                            ? 'System trade-offs, architecture & blocker resolution' 
+                            : 'STAR scenario, leadership, and team collaboration';
+
+                  return (
+                    <div 
+                      key={q.id || idx} 
+                      className="p-2 rounded-xl bg-slate-50/70 border border-slate-200/80 flex items-center justify-between gap-2.5 hover:bg-slate-50 transition-colors shadow-2xs"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="w-5 h-5 rounded-full bg-white border border-slate-200 text-[10px] font-bold text-slate-700 flex items-center justify-center shrink-0 shadow-2xs">
+                          {idx + 1}
+                        </span>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-[#FCF9EE] text-[#855E15] border border-[#EEDD9E]">
+                              {categoryLabel}
+                            </span>
+                            <span className="text-[10px] text-slate-500 font-medium truncate">
+                              {evaluationGoal}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <Lock className="w-3 h-3 text-amber-500/80 shrink-0" />
+                            <span className="text-[10px] font-mono text-slate-400 select-none tracking-wider">
+                              [Question sealed • Spoken live by {interviewerName}]
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                        <ShieldCheck className="w-3 h-3 text-emerald-500" />
+                        <span className="hidden sm:inline">Sealed</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Right Column (5 Cols): Audio Health & Interview Tips */}
+            <div className="lg:col-span-5 space-y-2.5 flex flex-col justify-between">
+              
+              {/* Section: Microphone & Speech Health */}
+              <div className="p-3 rounded-xl bg-slate-50/70 border border-slate-200/80 space-y-2">
+                <div className="flex items-center justify-between pb-1 border-b border-slate-200/60">
+                  <div className="flex items-center gap-1.5">
+                    <Mic className="w-3.5 h-3.5 text-[#A87D1B]" />
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-800">
+                      Microphone & Audio Check
+                    </span>
+                  </div>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    micStatus === 'ready'
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      : 'bg-amber-50 text-amber-700 border border-amber-200'
+                  }`}>
+                    {micStatus === 'ready' ? 'Mic Active' : 'Speech Ready'}
+                  </span>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-700">
+                    <span>Live Input Level:</span>
+                    <span className="font-mono text-xs text-amber-700">{Math.round(micVolume)}%</span>
+                  </div>
+                  <div className="w-full h-2 bg-slate-200/80 rounded-full overflow-hidden shadow-inner">
+                    <div
+                      className="h-full bg-gradient-to-r from-emerald-500 via-[#D4AF37] to-amber-500 transition-all duration-100 rounded-full"
+                      style={{ width: `${Math.min(100, Math.max(micVolume * 1.5, 6))}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-[10px] text-gray-400">Speak into your mic to verify dynamic sensitivity.</p>
+                </div>
+              </div>
+
+              {/* Section: Best Practice Advice */}
+              <div className="p-3 rounded-xl bg-slate-50/70 border border-slate-200/80 space-y-2">
+                <div className="flex items-center gap-1.5 pb-1 border-b border-slate-200/60">
+                  <Lightbulb className="w-3.5 h-3.5 text-[#A87D1B]" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-800">
+                    FAANG Interview Best Practices
+                  </span>
+                </div>
+
+                <ul className="space-y-1.5 text-[11px] text-slate-600 font-medium">
+                  <li className="flex items-start gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37] mt-1 shrink-0"></span>
+                    <span><strong>Structure Before Answering:</strong> Take 2-3 seconds to outline your approach clearly.</span>
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37] mt-1 shrink-0"></span>
+                    <span><strong>Use STAR Method:</strong> Detail Situation, Task, Action & Result on behavioral questions.</span>
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37] mt-1 shrink-0"></span>
+                    <span><strong>Clarify Anytime:</strong> You can ask {interviewerName} to repeat or clarify any probe.</span>
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
 
-          {/* Audio & Mic Health Check Card (Compact) */}
-          <div className="luxury-card p-4 rounded-3xl space-y-2.5 bg-white">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
-                Microphone & Speech Check
-              </span>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                micStatus === 'ready'
-                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                  : 'bg-amber-50 text-amber-700 border border-amber-200'
-              }`}>
-                {micStatus === 'ready' ? 'Microphone Active' : 'Speech Enabled'}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-2xl border border-gray-200">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                micStatus === 'ready' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-              }`}>
-                <Mic className="w-4 h-4" />
-              </div>
-              <div className="flex-1 space-y-1">
-                <div className="flex items-center justify-between text-[11px] font-bold text-gray-800">
-                  <span>Speak into mic to test volume:</span>
-                  <span className="font-mono text-gray-500">{Math.round(micVolume)}%</span>
-                </div>
-                <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-emerald-500 to-[#D4AF37] transition-all duration-100"
-                    style={{ width: `${Math.min(100, Math.max(micVolume * 1.5, 5))}%` }}
-                  ></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Action Row */}
-          <div className="flex items-center justify-between pt-1">
+          {/* Footer Action Row */}
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-2.5 border-t border-gray-100">
             <button
               onClick={onBack}
-              className="text-xs font-semibold text-gray-500 hover:text-gray-900 px-3 py-1.5 cursor-pointer"
+              className="text-xs font-semibold text-gray-600 hover:text-gray-900 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer"
             >
               ← Back to Setup
             </button>
 
+            <div className="hidden sm:flex items-center gap-2 text-xs text-gray-500">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              Audio engine warmed up • Room environment calibrated
+            </div>
+
             <button
               onClick={handleBegin}
-              className="px-7 py-3 text-xs font-bold text-white rounded-xl gold-gradient-btn flex items-center gap-2 cursor-pointer shadow-md hover:shadow-lg transition-all"
+              className="w-full sm:w-auto px-7 py-2.5 text-xs sm:text-sm font-bold text-white rounded-xl gold-gradient-btn flex items-center justify-center gap-2 cursor-pointer shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] transition-all"
             >
               <Play className="w-3.5 h-3.5 fill-white" />
               <span>Enter Live Interview Room</span>
-              <span className="font-bold text-sm">→</span>
+              <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         </div>

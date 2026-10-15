@@ -198,6 +198,15 @@
   background: #B8A88F;
 }
 
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* --- CodeBackground Styles --- */
 :root {
   --cb-bg-0: #FAFAF7;
